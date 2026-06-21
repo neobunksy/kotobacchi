@@ -2,8 +2,20 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { loadUser, updateLoginStreak, type UserData } from '@/lib/store';
-import AiBuddy from '@/components/AiBuddy';
+import {
+  loadUser,
+  saveUser,
+  updateLoginStreak,
+  getTodayCharacter,
+  applyNeedsDecay,
+  feedCharacter,
+  playWithCharacter,
+  restCharacter,
+  checkNeedsReward,
+  type UserData,
+  type AiBuddyCharacter,
+} from '@/lib/store';
+import AiBuddy, { type AiBuddyMood } from '@/components/AiBuddy';
 import StarCounter from '@/components/StarCounter';
 
 const MESSAGES = [
@@ -83,6 +95,45 @@ function NightStars() {
   );
 }
 
+// ニーズメーター1本
+function NeedsMeter({
+  emoji,
+  label,
+  value,
+  color,
+}: {
+  emoji: string;
+  label: string;
+  value: number;
+  color: string;
+}) {
+  const isLow = value <= 40;
+  const pct = Math.round(value);
+
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-lg w-6 text-center">{emoji}</span>
+      <span className="text-xs font-bold w-10 shrink-0" style={{ color: '#4A4A4A' }}>{label}</span>
+      <div
+        className="flex-1 rounded-full overflow-hidden"
+        style={{ height: 12, backgroundColor: 'rgba(255,255,255,0.5)' }}
+      >
+        <div
+          className={isLow ? 'animate-pulse' : ''}
+          style={{
+            height: '100%',
+            width: `${pct}%`,
+            backgroundColor: color,
+            borderRadius: 9999,
+            transition: 'width 0.5s ease',
+          }}
+        />
+      </div>
+      <span className="text-xs w-8 text-right shrink-0" style={{ color: '#4A4A4A' }}>{pct}%</span>
+    </div>
+  );
+}
+
 export default function HomePage() {
   const router = useRouter();
   const [user, setUser] = useState<UserData | null>(null);
@@ -90,6 +141,9 @@ export default function HomePage() {
   const [message, setMessage] = useState(MESSAGES[0]);
   const [timeOfDay, setTimeOfDay] = useState<TimeOfDay>('morning');
   const [showSpeechBubble, setShowSpeechBubble] = useState(true);
+  const [todayCharacter, setTodayCharacter] = useState<AiBuddyCharacter>('bunny');
+  const [buddyMood, setBuddyMood] = useState<AiBuddyMood>('idle');
+  const [flashMessage, setFlashMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const userData = loadUser();
@@ -98,11 +152,29 @@ export default function HomePage() {
       return;
     }
     updateLoginStreak();
-    const updatedUser = loadUser();
-    setUser(updatedUser);
+    const loaded = loadUser()!;
+    // Needsの時間経過減少を適用
+    const decayed = applyNeedsDecay(loaded.needs);
+    loaded.needs = decayed;
+    saveUser(loaded);
+    setUser(loaded);
     setTimeOfDay(getTimeOfDay());
+    setTodayCharacter(getTodayCharacter());
     setIsLoading(false);
   }, [router]);
+
+  // 30秒ごとにNeedsを再計算
+  useEffect(() => {
+    if (!user) return;
+    const interval = setInterval(() => {
+      const current = loadUser();
+      if (!current) return;
+      current.needs = applyNeedsDecay(current.needs);
+      saveUser(current);
+      setUser({ ...current });
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [user]);
 
   const rotateMessage = useCallback(() => {
     setShowSpeechBubble(false);
@@ -116,6 +188,27 @@ export default function HomePage() {
     const interval = setInterval(rotateMessage, 3000);
     return () => clearInterval(interval);
   }, [rotateMessage]);
+
+  // アクション共通処理
+  const handleAction = useCallback((actionFn: () => UserData | null) => {
+    const updated = actionFn();
+    if (!updated) return;
+    // 報酬チェック
+    const rewarded = checkNeedsReward(updated);
+    setUser({ ...rewarded });
+    // キャラを一時的に happy に
+    setBuddyMood('happy');
+    setTimeout(() => setBuddyMood('idle'), 500);
+    // 満タン達成フラッシュ
+    if (
+      rewarded.needs.hunger >= 80 &&
+      rewarded.needs.sleepy >= 80 &&
+      rewarded.needs.mood >= 80
+    ) {
+      setFlashMessage('さいこうだよ！⭐⭐⭐');
+      setTimeout(() => setFlashMessage(null), 2000);
+    }
+  }, []);
 
   if (isLoading || !user) {
     return (
@@ -132,6 +225,8 @@ export default function HomePage() {
   const textColor = timeOfDay === 'night' ? '#ffffff' : '#4A4A4A';
   const textShadow = timeOfDay === 'night' ? '0 1px 4px rgba(0,0,0,0.8)' : '0 1px 4px rgba(255,255,255,0.8)';
 
+  const needs = user.needs;
+
   return (
     <div className="flex flex-col min-h-screen relative overflow-hidden" style={{ background: bg }}>
       {timeOfDay === 'night' && <NightStars />}
@@ -142,6 +237,16 @@ export default function HomePage() {
           <div className="fixed top-16 right-4 opacity-40 animate-float text-3xl pointer-events-none" style={{ animationDelay: '1.5s' }}>☁️</div>
           <div className="fixed top-6 right-1/3 opacity-50 animate-float text-4xl pointer-events-none" style={{ animationDelay: '0.8s' }}>☁️</div>
         </>
+      )}
+
+      {/* フラッシュメッセージ */}
+      {flashMessage && (
+        <div
+          className="fixed top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 rounded-2xl px-6 py-4 text-center font-bold text-xl shadow-xl"
+          style={{ backgroundColor: 'rgba(255,230,100,0.97)', color: '#4A3A00', pointerEvents: 'none' }}
+        >
+          {flashMessage}
+        </div>
       )}
 
       {/* ヘッダー：ほし数 */}
@@ -175,12 +280,53 @@ export default function HomePage() {
 
           <AiBuddy
             size={140}
-            mood="idle"
+            character={todayCharacter}
+            mood={buddyMood}
             hat={user.equippedItems.hat}
             outfit={user.equippedItems.outfit}
             accessory={user.equippedItems.accessory}
             onClick={() => router.push('/hanashi')}
           />
+        </div>
+
+        {/* ニーズメーター */}
+        <div
+          className="w-full max-w-xs rounded-2xl px-4 py-3 mb-3"
+          style={{ backgroundColor: 'rgba(255,255,255,0.55)', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
+        >
+          <div className="flex flex-col gap-2">
+            <NeedsMeter emoji="🍙" label="おなか" value={needs.hunger} color="#FF9D5C" />
+            <NeedsMeter emoji="😴" label="ねむい" value={needs.sleepy} color="#9B8ECF" />
+            <NeedsMeter emoji="💕" label="きもち" value={needs.mood}   color="#FF8FAB" />
+          </div>
+        </div>
+
+        {/* アクションボタン */}
+        <div className="flex gap-3 mb-4 w-full max-w-xs justify-center">
+          <button
+            onClick={() => handleAction(feedCharacter)}
+            className="flex-1 flex flex-col items-center gap-1 rounded-2xl py-3 active:scale-95 transition-transform"
+            style={{ backgroundColor: 'rgba(255,157,92,0.85)', boxShadow: '0 3px 10px rgba(255,157,92,0.4)' }}
+          >
+            <span className="text-2xl">🍙</span>
+            <span className="text-xs font-bold" style={{ color: '#4A2A00' }}>ごはん</span>
+          </button>
+          <button
+            onClick={() => handleAction(restCharacter)}
+            className="flex-1 flex flex-col items-center gap-1 rounded-2xl py-3 active:scale-95 transition-transform"
+            style={{ backgroundColor: 'rgba(155,142,207,0.85)', boxShadow: '0 3px 10px rgba(155,142,207,0.4)' }}
+          >
+            <span className="text-2xl">😴</span>
+            <span className="text-xs font-bold" style={{ color: '#2A1A4A' }}>ねんね</span>
+          </button>
+          <button
+            onClick={() => handleAction(playWithCharacter)}
+            className="flex-1 flex flex-col items-center gap-1 rounded-2xl py-3 active:scale-95 transition-transform"
+            style={{ backgroundColor: 'rgba(255,143,171,0.85)', boxShadow: '0 3px 10px rgba(255,143,171,0.4)' }}
+          >
+            <span className="text-2xl">🎮</span>
+            <span className="text-xs font-bold" style={{ color: '#4A0A1A' }}>あそぶ</span>
+          </button>
         </div>
 
         {/* あいさつ */}
@@ -224,7 +370,7 @@ export default function HomePage() {
           className="rounded-full p-1 shadow-lg animate-gentlePulse"
           style={{ backgroundColor: 'rgba(255,255,255,0.9)', border: '3px solid #FFB7C5' }}
         >
-          <AiBuddy size={56} mood="idle" />
+          <AiBuddy size={56} mood="idle" character={todayCharacter} />
         </div>
       </div>
     </div>
