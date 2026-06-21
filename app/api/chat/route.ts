@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const SYSTEM_PROMPT = `あなたは子供のおともだちです。ひらがなとカタカナのみで話してください。漢字は禁止。最大50文字。やさしく短く話してください。`;
+const SYSTEM_PROMPT = `あなたは「ことばっち」という子どもの大すきなともだちです。
+ルール：
+- かならずひらがなだけでかいてください（カタカナも漢字もきごうも使わない）
+- 5さいの子がわかるやさしいことばだけつかう
+- 1かいの返事は30もじいないにする
+- たのしく、やさしく、元気よく話す
+- 「だよ！」「だね！」「すごいね！」のようなくちちょう`;
 
 const FALLBACK_RESPONSES = [
   'そうなんだね！',
@@ -15,31 +21,36 @@ const FALLBACK_RESPONSES = [
   'おもしろいね！',
 ];
 
+type HistoryItem = { role: 'user' | 'model'; text: string };
+
 export async function POST(req: NextRequest) {
   try {
-    const { message } = (await req.json()) as { message: string };
+    const { message, history = [] } = (await req.json()) as { message: string; history?: HistoryItem[] };
 
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      // フォールバック
       const fallback = FALLBACK_RESPONSES[Math.floor(Math.random() * FALLBACK_RESPONSES.length)];
       return NextResponse.json({ reply: fallback });
     }
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+
+    const historyContents = history.map(h => ({
+      role: h.role,
+      parts: [{ text: h.text }],
+    }));
+
     const body = {
       system_instruction: {
         parts: [{ text: SYSTEM_PROMPT }],
       },
       contents: [
-        {
-          role: 'user',
-          parts: [{ text: message }],
-        },
+        ...historyContents,
+        { role: 'user', parts: [{ text: message }] },
       ],
       generationConfig: {
-        maxOutputTokens: 80,
-        temperature: 0.8,
+        maxOutputTokens: 60,
+        temperature: 0.9,
       },
     };
 
@@ -55,13 +66,12 @@ export async function POST(req: NextRequest) {
     }
 
     const data = (await response.json()) as {
-      candidates?: Array<{
-        content?: {
-          parts?: Array<{ text?: string }>;
-        };
-      }>;
+      candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
     };
-    const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? FALLBACK_RESPONSES[0];
+    let reply = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? FALLBACK_RESPONSES[0];
+
+    // 漢字・カタカナが混入した場合もフォールバック（念のため）
+    reply = reply.slice(0, 60);
 
     return NextResponse.json({ reply });
   } catch {

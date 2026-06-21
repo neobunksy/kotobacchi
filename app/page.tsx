@@ -121,7 +121,7 @@ export default function HomePage() {
     return (
       <div className="flex items-center justify-center min-h-screen" style={{ background: '#87CEEB' }}>
         <div className="animate-hop">
-          <AiBuddy size={80} />
+          <AiBuddy size={80} mood="idle" />
         </div>
       </div>
     );
@@ -175,6 +175,7 @@ export default function HomePage() {
 
           <AiBuddy
             size={140}
+            mood="idle"
             hat={user.equippedItems.hat}
             outfit={user.equippedItems.outfit}
             accessory={user.equippedItems.accessory}
@@ -223,7 +224,7 @@ export default function HomePage() {
           className="rounded-full p-1 shadow-lg animate-gentlePulse"
           style={{ backgroundColor: 'rgba(255,255,255,0.9)', border: '3px solid #FFB7C5' }}
         >
-          <AiBuddy size={56} />
+          <AiBuddy size={56} mood="idle" />
         </div>
       </div>
     </div>

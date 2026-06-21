@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import AiBuddy from '@/components/AiBuddy';
+import AiBuddy, { type AiBuddyMood } from '@/components/AiBuddy';
 import BackButton from '@/components/BackButton';
 import { speak } from '@/lib/speak';
 
@@ -14,7 +14,7 @@ type Message = {
 const INITIAL_MESSAGE: Message = {
   id: 'init',
   role: 'ai',
-  text: 'こんにちは！なにかはなしかけてね！🐰',
+  text: 'こんにちは！なにかはなしかけてね！',
 };
 
 // ===== かなデータ =====
@@ -121,13 +121,22 @@ export default function HanashiPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [kanaTab, setKanaTab] = useState<KanaTab>('hiragana');
+  const [aiMood, setAiMood] = useState<AiBuddyMood>('idle');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
+  const talkingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // アンマウント時にタイマークリーンアップ
+  useEffect(() => {
+    return () => {
+      if (talkingTimerRef.current) clearTimeout(talkingTimerRef.current);
+    };
+  }, []);
 
   const sendMessage = useCallback(async (text: string) => {
     if (!text.trim() || isLoading) return;
@@ -136,34 +145,56 @@ export default function HanashiPage() {
       role: 'user',
       text: text.trim(),
     };
-    setMessages(prev => [...prev, userMsg]);
-    setInputText('');
-    setIsLoading(true);
 
-    try {
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text.trim() }),
-      });
-      const data = (await res.json()) as { reply: string };
-      const aiMsg: Message = {
-        id: `a-${Date.now()}`,
-        role: 'ai',
-        text: data.reply,
+    setMessages(prev => {
+      const getHistory = (msgs: Message[]) => {
+        return msgs.slice(-10).map(m => ({
+          role: m.role === 'ai' ? ('model' as const) : ('user' as const),
+          text: m.text,
+        }));
       };
-      setMessages(prev => [...prev, aiMsg]);
-      speak(data.reply);
-    } catch {
-      const errMsg: Message = {
-        id: `a-${Date.now()}`,
-        role: 'ai',
-        text: 'ごめんね、うまくきこえなかった！もういちどいってね！',
-      };
-      setMessages(prev => [...prev, errMsg]);
-    } finally {
-      setIsLoading(false);
-    }
+
+      const currentHistory = getHistory(prev);
+
+      setInputText('');
+      setIsLoading(true);
+      setAiMood('thinking');
+
+      (async () => {
+        try {
+          const res = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: text.trim(), history: currentHistory }),
+          });
+          const data = (await res.json()) as { reply: string };
+          const aiMsg: Message = {
+            id: `a-${Date.now()}`,
+            role: 'ai',
+            text: data.reply,
+          };
+          setMessages(p => [...p, aiMsg]);
+          speak(data.reply);
+          setAiMood('talking');
+          if (talkingTimerRef.current) clearTimeout(talkingTimerRef.current);
+          talkingTimerRef.current = setTimeout(() => {
+            setAiMood('idle');
+          }, 3000);
+        } catch {
+          const errMsg: Message = {
+            id: `a-${Date.now()}`,
+            role: 'ai',
+            text: 'ごめんね、うまくきこえなかった！もういちどいってね！',
+          };
+          setMessages(p => [...p, errMsg]);
+          setAiMood('idle');
+        } finally {
+          setIsLoading(false);
+        }
+      })();
+
+      return [...prev, userMsg];
+    });
   }, [isLoading]);
 
   const startListening = useCallback(() => {
@@ -221,12 +252,12 @@ export default function HanashiPage() {
       {/* ヘッダー */}
       <div className="flex items-center px-4 pt-6 pb-2 relative z-10 flex-shrink-0">
         <BackButton href="/" />
-        <h1 className="ml-4 text-xl font-bold" style={{ color: '#4A4A4A' }}>💬 おはなし</h1>
+        <h1 className="ml-4 text-xl font-bold" style={{ color: '#4A4A4A' }}>おはなし</h1>
       </div>
 
       {/* AIキャラクター（小さめ） */}
       <div className="flex justify-center py-1 relative z-10 flex-shrink-0">
-        <AiBuddy size={64} />
+        <AiBuddy size={64} mood={aiMood} />
       </div>
 
       {/* 会話ログ（flex-1でスクロール可能） */}
@@ -251,12 +282,8 @@ export default function HanashiPage() {
           ))}
           {isLoading && (
             <div className="flex justify-start">
-              <div
-                className="rounded-3xl px-5 py-3 shadow-md"
-                style={{ backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: '24px 24px 24px 6px' }}
-              >
+              <div className="rounded-3xl px-5 py-3 shadow-md" style={{ backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: '24px 24px 24px 6px' }}>
                 <div className="flex gap-1 items-center">
-                  <span className="animate-hop text-lg">🐰</span>
                   <span style={{ color: '#888' }} className="text-sm">かんがえちゅう...</span>
                 </div>
               </div>
