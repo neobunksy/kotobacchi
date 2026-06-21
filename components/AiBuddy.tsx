@@ -2,14 +2,14 @@
 
 import { useState, useEffect, useRef } from 'react';
 
-export type AiBuddyMood = 'idle' | 'blink' | 'happy' | 'talking' | 'thinking' | 'surprised';
+export type AiBuddyMood = 'idle' | 'talking' | 'thinking' | 'happy';
 export type AiBuddyCharacter = 'bunny' | 'gorilla';
 
 type AiBuddyProps = {
   size?: number;
   character?: AiBuddyCharacter;
   mood?: AiBuddyMood;
-  hat?: string | null;      // 後方互換のため残す（現在は未使用）
+  hat?: string | null;
   outfit?: string | null;
   accessory?: string | null;
   className?: string;
@@ -21,44 +21,45 @@ type FramePos = [number, number]; // [col, row]
 const BUNNY_GRID = { cols: 4, rows: 6 };
 const GORILLA_GRID = { cols: 5, rows: 5 };
 
-const BUNNY_MOODS: Record<AiBuddyMood, FramePos[]> = {
-  idle:      [[0, 0], [3, 0]],
-  blink:     [[1, 0]],
-  happy:     [[2, 3], [3, 3]],
-  talking:   [[0, 4], [2, 4]],
-  thinking:  [[0, 1]],
-  surprised: [[2, 0]],
+// 各 mood の固定表示フレーム（頻繁に切り替えない）
+const BUNNY = {
+  idle:     [0, 0] as FramePos,
+  talking:  [0, 4] as FramePos,
+  thinking: [0, 1] as FramePos,
+  happy:    [2, 3] as FramePos,
+  blink:    [1, 0] as FramePos,  // まばたき一時フレーム
+  wave:     [3, 3] as FramePos,  // 手振り一時フレーム
 };
 
-const GORILLA_MOODS: Record<AiBuddyMood, FramePos[]> = {
-  idle:      [[0, 0], [1, 2]],
-  blink:     [[3, 0]],
-  happy:     [[1, 0], [4, 1]],
-  talking:   [[2, 0], [2, 2]],
-  thinking:  [[1, 1], [3, 1]],
-  surprised: [[2, 1]],
+const GORILLA = {
+  idle:     [0, 0] as FramePos,
+  talking:  [2, 2] as FramePos,
+  thinking: [1, 1] as FramePos,
+  happy:    [1, 0] as FramePos,
+  blink:    [3, 0] as FramePos,
+  wave:     [4, 1] as FramePos,
 };
 
-function getFrameStyle(
+function frameToBgStyle(
   character: AiBuddyCharacter,
-  col: number,
-  row: number,
+  frame: FramePos,
   size: number
 ): React.CSSProperties {
-  const { cols, rows } = character === 'bunny' ? BUNNY_GRID : GORILLA_GRID;
-  const xPct = cols > 1 ? (col / (cols - 1)) * 100 : 0;
-  const yPct = rows > 1 ? (row / (rows - 1)) * 100 : 0;
+  const grid = character === 'bunny' ? BUNNY_GRID : GORILLA_GRID;
   const src = character === 'bunny' ? '/characters/bunny.png' : '/characters/gorilla.png';
+  const [col, row] = frame;
+  const xPct = grid.cols > 1 ? (col / (grid.cols - 1)) * 100 : 0;
+  const yPct = grid.rows > 1 ? (row / (grid.rows - 1)) * 100 : 0;
 
   return {
+    position: 'absolute',
+    inset: 0,
     width: size,
     height: size,
     backgroundImage: `url(${src})`,
-    backgroundSize: `${cols * 100}% ${rows * 100}%`,
+    backgroundSize: `${grid.cols * 100}% ${grid.rows * 100}%`,
     backgroundPosition: `${xPct}% ${yPct}%`,
     backgroundRepeat: 'no-repeat',
-    imageRendering: 'auto',
-    borderRadius: '50%',
   };
 }
 
@@ -69,65 +70,59 @@ export default function AiBuddy({
   className = '',
   onClick,
 }: AiBuddyProps) {
-  const moods = character === 'bunny' ? BUNNY_MOODS : GORILLA_MOODS;
-  const frames = moods[mood] ?? moods.idle;
+  const frames = character === 'bunny' ? BUNNY : GORILLA;
+  const baseFrame: FramePos = frames[mood] ?? frames.idle;
 
-  const [frameIdx, setFrameIdx] = useState(0);
-  const [displayMood, setDisplayMood] = useState<AiBuddyMood>(mood);
-  const blinkTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const frameTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // オーバーレイ（まばたき・手振り）は opacity cross-fade で実現
+  const [overlayFrame, setOverlayFrame] = useState<FramePos>(frames.blink);
+  const [overlayOpacity, setOverlayOpacity] = useState(0);
+  const loopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sequenceTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
-  // mood が変わったら displayMood を更新・frameIdx をリセット
+  const clearSequence = () => {
+    sequenceTimersRef.current.forEach(t => clearTimeout(t));
+    sequenceTimersRef.current = [];
+  };
+
+  // idle 中のランダムアクション（まばたき・手振り）
   useEffect(() => {
-    setDisplayMood(mood);
-    setFrameIdx(0);
-  }, [mood]);
+    if (mood !== 'idle') {
+      if (loopTimerRef.current) clearTimeout(loopTimerRef.current);
+      clearSequence();
+      setOverlayOpacity(0);
+      return;
+    }
 
-  // フレームを定期的に切り替え（talking は速め、idle は遅め）
-  useEffect(() => {
-    if (frameTimerRef.current) clearInterval(frameTimerRef.current);
-    const currentFrames = moods[displayMood] ?? moods.idle;
-    if (currentFrames.length <= 1) return;
+    const loop = () => {
+      const delay = 2500 + Math.random() * 4000;
+      loopTimerRef.current = setTimeout(() => {
+        const isWave = Math.random() < 0.28;
+        const targetFrame = isWave ? frames.wave : frames.blink;
+        const holdMs = isWave ? 750 : 160;
 
-    const interval = displayMood === 'talking' ? 350 : 2500;
-    frameTimerRef.current = setInterval(() => {
-      setFrameIdx(prev => (prev + 1) % currentFrames.length);
-    }, interval);
+        setOverlayFrame(targetFrame);
 
-    return () => {
-      if (frameTimerRef.current) clearInterval(frameTimerRef.current);
-    };
-  }, [displayMood, moods]);
-
-  // idle 中はランダムにまばたき
-  useEffect(() => {
-    if (displayMood !== 'idle') return;
-
-    const scheduleBlink = () => {
-      const delay = 3000 + Math.random() * 4000;
-      blinkTimerRef.current = setTimeout(() => {
-        setDisplayMood('blink');
-        setTimeout(() => {
-          setDisplayMood('idle');
-          setFrameIdx(0);
-          scheduleBlink();
-        }, 180);
+        // フェードイン → 表示維持 → フェードアウト → 次のループ
+        const t1 = setTimeout(() => setOverlayOpacity(1), 16);
+        const t2 = setTimeout(() => setOverlayOpacity(0), 16 + holdMs);
+        const t3 = setTimeout(() => loop(), 16 + holdMs + 100);
+        sequenceTimersRef.current = [t1, t2, t3];
       }, delay);
     };
 
-    scheduleBlink();
+    loop();
 
     return () => {
-      if (blinkTimerRef.current) clearTimeout(blinkTimerRef.current);
+      if (loopTimerRef.current) clearTimeout(loopTimerRef.current);
+      clearSequence();
     };
-  }, [mood, displayMood]);
+  }, [mood, frames]);
 
-  const currentFrames = moods[displayMood] ?? moods.idle;
-  const [col, row] = currentFrames[frameIdx] ?? currentFrames[0];
-  const frameStyle = getFrameStyle(character, col, row, size);
-
-  // frames は変数として参照されないが、後方互換のため型チェック用に保持
-  void frames;
+  const animClass =
+    mood === 'talking'  ? 'animate-charTalk'
+    : mood === 'thinking' ? 'animate-charThink'
+    : mood === 'happy'    ? 'animate-charHappy'
+    : 'animate-charFloat';
 
   return (
     <div
@@ -137,13 +132,19 @@ export default function AiBuddy({
       role={onClick ? 'button' : undefined}
       aria-label={onClick ? 'ことばっちをタップ' : undefined}
     >
-      {/* キャラクタースプライト */}
-      <div
-        style={{
-          ...frameStyle,
-          transition: 'background-position 0.1s ease',
-        }}
-      />
+      <div className={animClass} style={{ position: 'relative', width: size, height: size }}>
+        {/* ベースレイヤー（mood に応じた固定フレーム） */}
+        <div style={frameToBgStyle(character, baseFrame, size)} />
+
+        {/* オーバーレイ（まばたき・手振り - opacity でフェード） */}
+        <div
+          style={{
+            ...frameToBgStyle(character, overlayFrame, size),
+            opacity: overlayOpacity,
+            transition: 'opacity 0.08s ease',
+          }}
+        />
+      </div>
     </div>
   );
 }

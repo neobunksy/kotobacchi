@@ -140,62 +140,49 @@ export default function HanashiPage() {
 
   const sendMessage = useCallback(async (text: string) => {
     if (!text.trim() || isLoading) return;
-    const userMsg: Message = {
-      id: `u-${Date.now()}`,
-      role: 'user',
-      text: text.trim(),
-    };
 
-    setMessages(prev => {
-      const getHistory = (msgs: Message[]) => {
-        return msgs.slice(-10).map(m => ({
-          role: m.role === 'ai' ? ('model' as const) : ('user' as const),
-          text: m.text,
-        }));
+    const trimmedText = text.trim();
+
+    // 会話履歴を構築（初期メッセージを除外し、必ず user から始まる）
+    const history = messages
+      .filter(m => m.id !== 'init')
+      .map(m => ({
+        role: m.role === 'ai' ? ('model' as const) : ('user' as const),
+        text: m.text,
+      }));
+
+    // UI 更新（setMessages の外で副作用を起こす）
+    const userMsg: Message = { id: `u-${Date.now()}`, role: 'user', text: trimmedText };
+    setMessages(prev => [...prev, userMsg]);
+    setInputText('');
+    setIsLoading(true);
+    setAiMood('thinking');
+    if (talkingTimerRef.current) clearTimeout(talkingTimerRef.current);
+
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: trimmedText, history }),
+      });
+      const data = (await res.json()) as { reply: string };
+      const aiMsg: Message = { id: `a-${Date.now()}`, role: 'ai', text: data.reply };
+      setMessages(prev => [...prev, aiMsg]);
+      speak(data.reply);
+      setAiMood('talking');
+      talkingTimerRef.current = setTimeout(() => setAiMood('idle'), 3000);
+    } catch {
+      const errMsg: Message = {
+        id: `e-${Date.now()}`,
+        role: 'ai',
+        text: 'ごめんね、うまくきこえなかった！もういちどいってね！',
       };
-
-      const currentHistory = getHistory(prev);
-
-      setInputText('');
-      setIsLoading(true);
-      setAiMood('thinking');
-
-      (async () => {
-        try {
-          const res = await fetch('/api/chat', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: text.trim(), history: currentHistory }),
-          });
-          const data = (await res.json()) as { reply: string };
-          const aiMsg: Message = {
-            id: `a-${Date.now()}`,
-            role: 'ai',
-            text: data.reply,
-          };
-          setMessages(p => [...p, aiMsg]);
-          speak(data.reply);
-          setAiMood('talking');
-          if (talkingTimerRef.current) clearTimeout(talkingTimerRef.current);
-          talkingTimerRef.current = setTimeout(() => {
-            setAiMood('idle');
-          }, 3000);
-        } catch {
-          const errMsg: Message = {
-            id: `a-${Date.now()}`,
-            role: 'ai',
-            text: 'ごめんね、うまくきこえなかった！もういちどいってね！',
-          };
-          setMessages(p => [...p, errMsg]);
-          setAiMood('idle');
-        } finally {
-          setIsLoading(false);
-        }
-      })();
-
-      return [...prev, userMsg];
-    });
-  }, [isLoading]);
+      setMessages(prev => [...prev, errMsg]);
+      setAiMood('idle');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [isLoading, messages]);
 
   const startListening = useCallback(() => {
     if (typeof window === 'undefined') return;

@@ -143,3 +143,32 @@ body {
 .animate-confetti {
   animation: confettiFall 3s ease-in forwards;
 }
+
+/* キャラクターアニメーション */
+@keyframes charFloat {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  30%       { transform: translateY(-5px) rotate(-1.5deg); }
+  70%       { transform: translateY(-3px) rotate(1.5deg); }
+}
+
+@keyframes charTalk {
+  0%, 100% { transform: translateY(0px) scale(1) rotate(0deg); }
+  25%      { transform: translateY(-4px) scale(1.02) rotate(-1deg); }
+  75%      { transform: translateY(-2px) scale(0.99) rotate(1deg); }
+}
+
+@keyframes charThink {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50%      { transform: translateY(-2px) rotate(-2.5deg); }
+}
+
+@keyframes charHappy {
+  0%, 100% { transform: translateY(0px) scale(1) rotate(0deg); }
+  30%      { transform: translateY(-8px) scale(1.04) rotate(-2deg); }
+  70%      { transform: translateY(-5px) scale(1.02) rotate(2deg); }
+}
+
+.animate-charFloat { animation: charFloat 3s ease-in-out infinite; }
+.animate-charTalk  { animation: charTalk 0.6s ease-in-out infinite; }
+.animate-charThink { animation: charThink 3.5s ease-in-out infinite; }
+.animate-charHappy { animation: charHappy 1.2s ease-in-out infinite; }
