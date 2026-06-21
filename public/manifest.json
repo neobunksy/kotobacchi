@@ -1,0 +1,22 @@
+{
+  "name": "ことばっち",
+  "short_name": "ことばっち",
+  "description": "AIおともだちと一緒にことばをまなぼう！",
+  "start_url": "/",
+  "display": "fullscreen",
+  "orientation": "portrait",
+  "background_color": "#FFF9F0",
+  "theme_color": "#FF6B6B",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
