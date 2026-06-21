@@ -5,9 +5,10 @@ import { useRouter } from 'next/navigation';
 import { loadUser, addStars } from '@/lib/store';
 import BackButton from '@/components/BackButton';
 import StarCounter from '@/components/StarCounter';
+import { speak } from '@/lib/speak';
 
-// ひらがな五十音・濁点・半濁点・拗音・小文字
-const HIRAGANA = [
+// 五十音（縦書きグリッド用: 列優先、null = 空セル）
+const HIRAGANA_MAIN: (string | null)[] = [
   'あ','い','う','え','お',
   'か','き','く','け','こ',
   'さ','し','す','せ','そ',
@@ -15,15 +16,28 @@ const HIRAGANA = [
   'な','に','ぬ','ね','の',
   'は','ひ','ふ','へ','ほ',
   'ま','み','む','め','も',
-  'や','　','ゆ','　','よ',
+  'や', null,'ゆ', null,'よ',
   'ら','り','る','れ','ろ',
-  'わ','　','　','　','を',
-  'ん',
+  'わ', null, null, null,'を',
+  'ん', null, null, null, null,
+];
+
+const DAKUTEN_MAIN: (string | null)[] = [
   'が','ぎ','ぐ','げ','ご',
   'ざ','じ','ず','ぜ','ぞ',
   'だ','ぢ','づ','で','ど',
   'ば','び','ぶ','べ','ぼ',
   'ぱ','ぴ','ぷ','ぺ','ぽ',
+];
+
+// 小文字・長音（横並び）
+const SMALL_CHARS: string[] = [
+  'ぁ','ぃ','ぅ','ぇ','ぉ',
+  'ゃ','ゅ','ょ','っ','ー',
+];
+
+// 拗音（横並び、3列）
+const YOON_CHARS: string[] = [
   'きゃ','きゅ','きょ',
   'しゃ','しゅ','しょ',
   'ちゃ','ちゅ','ちょ',
@@ -31,19 +45,34 @@ const HIRAGANA = [
   'ひゃ','ひゅ','ひょ',
   'みゃ','みゅ','みょ',
   'りゃ','りゅ','りょ',
-  'ぁ','ぃ','ぅ','ぇ','ぉ','っ','ゃ','ゅ','ょ',
+  'ぎゃ','ぎゅ','ぎょ',
+  'じゃ','じゅ','じょ',
+  'びゃ','びゅ','びょ',
+  'ぴゃ','ぴゅ','ぴょ',
 ];
 
-const KATAKANA = HIRAGANA.map(c => {
-  if (c === '　') return '　';
-  const code = c.codePointAt(0);
-  if (code === undefined) return c;
-  // ひらがな範囲 U+3041-U+3096 → カタカナ U+30A1-U+30F6 (+0x60)
+// カタカナ変換（ひらがなコードポイント+0x60）
+function toKatakana(char: string | null): string | null {
+  if (char === null) return null;
+  const code = char.codePointAt(0);
+  if (code === undefined) return char;
   if (code >= 0x3041 && code <= 0x3096) {
     return String.fromCodePoint(code + 0x60);
   }
-  return c;
-});
+  // 拗音・複数文字の変換
+  return char.split('').map(c => {
+    const cp = c.codePointAt(0);
+    if (cp !== undefined && cp >= 0x3041 && cp <= 0x3096) {
+      return String.fromCodePoint(cp + 0x60);
+    }
+    return c;
+  }).join('');
+}
+
+const KATAKANA_MAIN = HIRAGANA_MAIN.map(toKatakana);
+const DAKUTEN_KATAKANA = DAKUTEN_MAIN.map(toKatakana);
+const SMALL_KATAKANA = SMALL_CHARS.map(c => toKatakana(c) ?? c);
+const YOON_KATAKANA = YOON_CHARS.map(c => toKatakana(c) ?? c);
 
 const ABC = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
@@ -61,14 +90,102 @@ const BUTTON_COLORS = [
 
 type Tab = 'hiragana' | 'katakana' | 'abc';
 
-function speak(text: string) {
-  if (typeof window === 'undefined') return;
-  const synth = window.speechSynthesis;
-  synth.cancel();
-  const utter = new SpeechSynthesisUtterance(text);
-  utter.lang = 'ja-JP';
-  utter.rate = 0.8;
-  synth.speak(utter);
+// 縦書きグリッドコンポーネント
+function VerticalGrid({
+  cells,
+  quizTarget,
+  punittoKey,
+  onCharClick,
+}: {
+  cells: (string | null)[];
+  quizTarget: string;
+  punittoKey: string | null;
+  onCharClick: (char: string) => void;
+}) {
+  // null以外の文字のインデックスを追跡（色付け用）
+  let colorIdx = 0;
+  return (
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateRows: 'repeat(5, 56px)',
+        gridAutoFlow: 'column',
+        direction: 'rtl',
+        gap: '4px',
+        overflowX: 'auto',
+        paddingBottom: '4px',
+      }}
+    >
+      {cells.map((char, i) => {
+        if (char === null) {
+          return <div key={i} style={{ width: 56 }} />;
+        }
+        const ci = colorIdx++;
+        return (
+          <button
+            key={i}
+            onClick={() => onCharClick(char)}
+            className="rounded-full font-bold transition-all active:scale-90 flex items-center justify-center shadow-md"
+            style={{
+              backgroundColor: BUTTON_COLORS[ci % BUTTON_COLORS.length],
+              width: 56,
+              height: 56,
+              color: '#4A4A4A',
+              border: quizTarget === char ? '3px solid #4A4A4A' : '2px solid rgba(255,255,255,0.7)',
+              animation: punittoKey === char ? 'punitto 0.3s ease-in-out' : undefined,
+              fontSize: char.length > 1 ? '0.8rem' : '1.4rem',
+              flexShrink: 0,
+            }}
+          >
+            {char}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// 横並びグリッドコンポーネント
+function HorizontalGrid({
+  chars,
+  cols,
+  colorOffset,
+  quizTarget,
+  punittoKey,
+  onCharClick,
+}: {
+  chars: string[];
+  cols: number;
+  colorOffset: number;
+  quizTarget: string;
+  punittoKey: string | null;
+  onCharClick: (char: string) => void;
+}) {
+  return (
+    <div
+      className="grid gap-1"
+      style={{ gridTemplateColumns: `repeat(${cols}, 56px)` }}
+    >
+      {chars.map((char, i) => (
+        <button
+          key={i}
+          onClick={() => onCharClick(char)}
+          className="rounded-full font-bold transition-all active:scale-90 flex items-center justify-center shadow-md"
+          style={{
+            backgroundColor: BUTTON_COLORS[(colorOffset + i) % BUTTON_COLORS.length],
+            width: 56,
+            height: 56,
+            color: '#4A4A4A',
+            border: quizTarget === char ? '3px solid #4A4A4A' : '2px solid rgba(255,255,255,0.7)',
+            animation: punittoKey === char ? 'punitto 0.3s ease-in-out' : undefined,
+            fontSize: char.length > 1 ? '0.8rem' : '1.4rem',
+          }}
+        >
+          {char}
+        </button>
+      ))}
+    </div>
+  );
 }
 
 export default function MojiPage() {
@@ -83,16 +200,34 @@ export default function MojiPage() {
   const [showConfetti, setShowConfetti] = useState(false);
   const [stars, setStars] = useState(0);
 
+  // router使用を維持（将来の遷移のため）
+  void router;
+
   useEffect(() => {
     const user = loadUser();
     if (user) setStars(user.stars);
   }, []);
 
-  const currentChars = tab === 'hiragana' ? HIRAGANA : tab === 'katakana' ? KATAKANA : ABC;
-  const filteredChars = currentChars.filter(c => c !== '　');
+  // クイズ対象となりうる全文字（nullを除く）
+  const getAllChars = useCallback((): string[] => {
+    const isKana = tab === 'hiragana' || tab === 'katakana';
+    if (isKana) {
+      const mainData = tab === 'hiragana' ? HIRAGANA_MAIN : KATAKANA_MAIN;
+      const dakutenData = tab === 'hiragana' ? DAKUTEN_MAIN : DAKUTEN_KATAKANA;
+      const smallData = tab === 'hiragana' ? SMALL_CHARS : SMALL_KATAKANA;
+      const yoonData = tab === 'hiragana' ? YOON_CHARS : YOON_KATAKANA;
+      return [
+        ...mainData.filter((c): c is string => c !== null),
+        ...dakutenData.filter((c): c is string => c !== null),
+        ...smallData,
+        ...yoonData,
+      ];
+    }
+    return ABC;
+  }, [tab]);
 
   const handleCharClick = useCallback((char: string) => {
-    if (char.trim() === '') return;
+    if (!char.trim()) return;
 
     setPunittoKey(char);
     setTimeout(() => setPunittoKey(null), 300);
@@ -101,11 +236,9 @@ export default function MojiPage() {
     setShowSparkle(true);
     setTimeout(() => setShowSparkle(false), 1000);
 
-    // 読み上げ
     const readText = tab === 'abc' ? (ABC_READING[char] ?? char) : char;
     speak(readText);
 
-    // クイズモード時の判定
     if (quizMode && quizTarget) {
       if (char === quizTarget) {
         setQuizResult('correct');
@@ -122,16 +255,16 @@ export default function MojiPage() {
         setTimeout(() => setQuizResult(null), 1000);
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, quizMode, quizTarget]);
 
   const startNewQuiz = useCallback(() => {
-    const chars = (tab === 'hiragana' ? HIRAGANA : tab === 'katakana' ? KATAKANA : ABC)
-      .filter(c => c.trim() !== '');
+    const chars = getAllChars();
     const target = chars[Math.floor(Math.random() * chars.length)];
     setQuizTarget(target);
     const readText = tab === 'abc' ? (ABC_READING[target] ?? target) : target;
     speak(`${readText} をおしてね！`);
-  }, [tab]);
+  }, [tab, getAllChars]);
 
   const toggleQuiz = useCallback(() => {
     if (!quizMode) {
@@ -145,7 +278,6 @@ export default function MojiPage() {
     }
   }, [quizMode, startNewQuiz]);
 
-  // タブ切り替え時にクイズリセット
   useEffect(() => {
     setQuizMode(false);
     setQuizTarget('');
@@ -160,6 +292,12 @@ export default function MojiPage() {
     color: BUTTON_COLORS[i % BUTTON_COLORS.length],
     size: 8 + Math.random() * 8,
   }));
+
+  const isKana = tab === 'hiragana' || tab === 'katakana';
+  const mainData = tab === 'hiragana' ? HIRAGANA_MAIN : KATAKANA_MAIN;
+  const dakutenData = tab === 'hiragana' ? DAKUTEN_MAIN : DAKUTEN_KATAKANA;
+  const smallData = tab === 'hiragana' ? SMALL_CHARS : SMALL_KATAKANA;
+  const yoonData = tab === 'hiragana' ? YOON_CHARS : YOON_KATAKANA;
 
   return (
     <div
@@ -259,25 +397,77 @@ export default function MojiPage() {
 
       {/* 文字ボタングリッド */}
       <div className="flex-1 overflow-y-auto px-4 pb-24 relative z-10">
-        <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
-          {filteredChars.map((char, i) => (
-            <button
-              key={`${tab}-${i}`}
-              onClick={() => handleCharClick(char)}
-              className="rounded-full font-bold text-xl transition-all active:scale-90 flex items-center justify-center shadow-md"
-              style={{
-                backgroundColor: BUTTON_COLORS[i % BUTTON_COLORS.length],
-                minHeight: '56px',
-                color: '#4A4A4A',
-                border: quizMode && char === quizTarget ? '3px solid #4A4A4A' : '2px solid rgba(255,255,255,0.7)',
-                animation: punittoKey === char ? 'punitto 0.3s ease-in-out' : undefined,
-                fontSize: char.length > 1 ? '0.8rem' : '1.4rem',
-              }}
-            >
-              {char}
-            </button>
-          ))}
-        </div>
+        {isKana ? (
+          <div className="flex flex-col gap-4">
+            {/* 五十音 */}
+            <div>
+              <p className="text-xs font-bold mb-1" style={{ color: '#888' }}>五十音</p>
+              <VerticalGrid
+                cells={mainData}
+                quizTarget={quizTarget}
+                punittoKey={punittoKey}
+                onCharClick={handleCharClick}
+              />
+            </div>
+
+            {/* だくてん */}
+            <div>
+              <p className="text-xs font-bold mb-1" style={{ color: '#888' }}>だくてん・はんだくてん</p>
+              <VerticalGrid
+                cells={dakutenData}
+                quizTarget={quizTarget}
+                punittoKey={punittoKey}
+                onCharClick={handleCharClick}
+              />
+            </div>
+
+            {/* こもじ・おんびき */}
+            <div>
+              <p className="text-xs font-bold mb-1" style={{ color: '#888' }}>こもじ・おんびき</p>
+              <HorizontalGrid
+                chars={smallData}
+                cols={5}
+                colorOffset={0}
+                quizTarget={quizTarget}
+                punittoKey={punittoKey}
+                onCharClick={handleCharClick}
+              />
+            </div>
+
+            {/* ようおん */}
+            <div>
+              <p className="text-xs font-bold mb-1" style={{ color: '#888' }}>ようおん</p>
+              <HorizontalGrid
+                chars={yoonData}
+                cols={3}
+                colorOffset={2}
+                quizTarget={quizTarget}
+                punittoKey={punittoKey}
+                onCharClick={handleCharClick}
+              />
+            </div>
+          </div>
+        ) : (
+          /* ABC */
+          <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
+            {ABC.map((char, i) => (
+              <button
+                key={`abc-${i}`}
+                onClick={() => handleCharClick(char)}
+                className="rounded-full font-bold text-xl transition-all active:scale-90 flex items-center justify-center shadow-md"
+                style={{
+                  backgroundColor: BUTTON_COLORS[i % BUTTON_COLORS.length],
+                  minHeight: '56px',
+                  color: '#4A4A4A',
+                  border: quizMode && char === quizTarget ? '3px solid #4A4A4A' : '2px solid rgba(255,255,255,0.7)',
+                  animation: punittoKey === char ? 'punitto 0.3s ease-in-out' : undefined,
+                }}
+              >
+                {char}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* クイズボタン（固定下部） */}

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import AiBuddy from '@/components/AiBuddy';
 import BackButton from '@/components/BackButton';
+import { speak } from '@/lib/speak';
 
 type Message = {
   id: string;
@@ -16,21 +17,110 @@ const INITIAL_MESSAGE: Message = {
   text: 'こんにちは！なにかはなしかけてね！🐰',
 };
 
-function speak(text: string) {
-  if (typeof window === 'undefined') return;
-  const synth = window.speechSynthesis;
-  synth.cancel();
-  const utter = new SpeechSynthesisUtterance(text);
-  utter.lang = 'ja-JP';
-  utter.rate = 0.85;
-  synth.speak(utter);
+// ===== かなデータ =====
+const HIRAGANA_MAIN: (string | null)[] = [
+  'あ','い','う','え','お',
+  'か','き','く','け','こ',
+  'さ','し','す','せ','そ',
+  'た','ち','つ','て','と',
+  'な','に','ぬ','ね','の',
+  'は','ひ','ふ','へ','ほ',
+  'ま','み','む','め','も',
+  'や', null,'ゆ', null,'よ',
+  'ら','り','る','れ','ろ',
+  'わ', null, null, null,'を',
+  'ん', null, null, null, null,
+];
+
+const DAKUTEN_MAIN: (string | null)[] = [
+  'が','ぎ','ぐ','げ','ご',
+  'ざ','じ','ず','ぜ','ぞ',
+  'だ','ぢ','づ','で','ど',
+  'ば','び','ぶ','べ','ぼ',
+  'ぱ','ぴ','ぷ','ぺ','ぽ',
+];
+
+const SMALL_CHARS: string[] = [
+  'ぁ','ぃ','ぅ','ぇ','ぉ',
+  'ゃ','ゅ','ょ','っ','ー',
+];
+
+const YOON_CHARS: string[] = [
+  'きゃ','きゅ','きょ',
+  'しゃ','しゅ','しょ',
+  'ちゃ','ちゅ','ちょ',
+  'にゃ','にゅ','にょ',
+  'ひゃ','ひゅ','ひょ',
+  'みゃ','みゅ','みょ',
+  'りゃ','りゅ','りょ',
+  'ぎゃ','ぎゅ','ぎょ',
+  'じゃ','じゅ','じょ',
+  'びゃ','びゅ','びょ',
+  'ぴゃ','ぴゅ','ぴょ',
+];
+
+const BUTTON_COLORS = [
+  '#FFB7C5', '#98E4D6', '#C8B8E8', '#FFE66D', '#87CEEB', '#FFB347', '#B8E6F8',
+];
+
+type KanaTab = 'hiragana' | 'dakuten' | 'komoji';
+
+// 縦書きグリッド
+function VerticalGrid({
+  cells,
+  onCharTap,
+}: {
+  cells: (string | null)[];
+  onCharTap: (char: string) => void;
+}) {
+  let colorIdx = 0;
+  return (
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateRows: 'repeat(5, 48px)',
+        gridAutoFlow: 'column',
+        direction: 'rtl',
+        gap: '4px',
+        overflowX: 'auto',
+        paddingBottom: '4px',
+      }}
+    >
+      {cells.map((char, i) => {
+        if (char === null) {
+          return <div key={i} style={{ width: 48 }} />;
+        }
+        const ci = colorIdx++;
+        return (
+          <button
+            key={i}
+            onClick={() => onCharTap(char)}
+            className="rounded-full font-bold transition-all active:scale-90 flex items-center justify-center shadow-sm"
+            style={{
+              backgroundColor: BUTTON_COLORS[ci % BUTTON_COLORS.length],
+              width: 48,
+              height: 48,
+              color: '#4A4A4A',
+              border: '2px solid rgba(255,255,255,0.7)',
+              fontSize: char.length > 1 ? '0.75rem' : '1.2rem',
+              flexShrink: 0,
+            }}
+          >
+            {char}
+          </button>
+        );
+      })}
+    </div>
+  );
 }
+
 
 export default function HanashiPage() {
   const [messages, setMessages] = useState<Message[]>([INITIAL_MESSAGE]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [kanaTab, setKanaTab] = useState<KanaTab>('hiragana');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
@@ -63,7 +153,6 @@ export default function HanashiPage() {
         text: data.reply,
       };
       setMessages(prev => [...prev, aiMsg]);
-      // AI応答を読み上げ
       speak(data.reply);
     } catch {
       const errMsg: Message = {
@@ -113,24 +202,35 @@ export default function HanashiPage() {
     setIsListening(false);
   }, []);
 
+  const handleKanaTap = useCallback((char: string) => {
+    setInputText(prev => prev + char);
+  }, []);
+
+  const handleDelete = useCallback(() => {
+    setInputText(prev => {
+      // サロゲートペアや複数文字を考慮して末尾1文字削除
+      return [...prev].slice(0, -1).join('');
+    });
+  }, []);
+
   return (
     <div
-      className="flex flex-col min-h-screen relative overflow-hidden"
+      className="flex flex-col h-screen relative overflow-hidden"
       style={{ background: 'linear-gradient(180deg, #C8B8E8 0%, #E8E0F5 100%)' }}
     >
       {/* ヘッダー */}
-      <div className="flex items-center px-4 pt-6 pb-2 relative z-10">
+      <div className="flex items-center px-4 pt-6 pb-2 relative z-10 flex-shrink-0">
         <BackButton href="/" />
         <h1 className="ml-4 text-xl font-bold" style={{ color: '#4A4A4A' }}>💬 おはなし</h1>
       </div>
 
-      {/* AIキャラクター */}
-      <div className="flex justify-center py-2 relative z-10">
-        <AiBuddy size={80} />
+      {/* AIキャラクター（小さめ） */}
+      <div className="flex justify-center py-1 relative z-10 flex-shrink-0">
+        <AiBuddy size={64} />
       </div>
 
-      {/* 会話ログ */}
-      <div className="flex-1 overflow-y-auto px-4 pb-4 relative z-10">
+      {/* 会話ログ（flex-1でスクロール可能） */}
+      <div className="flex-1 overflow-y-auto px-4 pb-2 relative z-10 min-h-0">
         <div className="flex flex-col gap-3 max-w-sm mx-auto">
           {messages.map(msg => (
             <div
@@ -166,45 +266,60 @@ export default function HanashiPage() {
         </div>
       </div>
 
-      {/* 入力エリア */}
+      {/* 入力バー */}
       <div
-        className="px-4 pb-6 pt-3 relative z-10"
-        style={{ backgroundColor: 'rgba(255,255,255,0.8)', borderTop: '2px solid rgba(200,184,232,0.4)' }}
+        className="px-4 pt-2 pb-1 relative z-10 flex-shrink-0"
+        style={{ backgroundColor: 'rgba(255,255,255,0.9)', borderTop: '2px solid rgba(200,184,232,0.4)' }}
       >
         <div className="flex gap-2 items-center max-w-sm mx-auto">
+          {/* 入力テキスト表示 */}
+          <div
+            className="flex-1 rounded-2xl px-3 py-2 font-bold overflow-hidden"
+            style={{
+              border: '2px solid',
+              borderColor: inputText ? '#C8B8E8' : '#E0E0E0',
+              color: '#4A4A4A',
+              backgroundColor: 'white',
+              minHeight: '44px',
+              fontSize: '1rem',
+              wordBreak: 'break-all',
+            }}
+          >
+            {inputText || <span style={{ color: '#ccc' }}>ここにかいてね</span>}
+          </div>
+
+          {/* 削除ボタン */}
+          <button
+            onClick={handleDelete}
+            disabled={!inputText}
+            className="rounded-full shadow transition-all active:scale-90 flex items-center justify-center"
+            style={{
+              backgroundColor: inputText ? '#FFB347' : '#E0E0E0',
+              minWidth: '44px',
+              minHeight: '44px',
+              border: '2px solid rgba(255,255,255,0.8)',
+              fontSize: '1.2rem',
+            }}
+            aria-label="さいごのもじをけす"
+          >
+            ←
+          </button>
+
           {/* マイクボタン */}
           <button
             onClick={isListening ? stopListening : startListening}
             className="rounded-full shadow-lg transition-all active:scale-90 flex items-center justify-center"
             style={{
               backgroundColor: isListening ? '#FF6B6B' : '#C8B8E8',
-              minWidth: '60px',
-              minHeight: '60px',
-              border: '3px solid rgba(255,255,255,0.8)',
+              minWidth: '44px',
+              minHeight: '44px',
+              border: '2px solid rgba(255,255,255,0.8)',
               animation: isListening ? 'gentlePulse 1s ease-in-out infinite' : undefined,
             }}
             aria-label={isListening ? 'マイクをとめる' : 'マイクをつかう'}
           >
-            <span className="text-2xl">{isListening ? '⏹' : '🎤'}</span>
+            <span className="text-xl">{isListening ? '⏹' : '🎤'}</span>
           </button>
-
-          {/* テキスト入力 */}
-          <input
-            type="text"
-            value={inputText}
-            onChange={e => setInputText(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') sendMessage(inputText); }}
-            placeholder="ここにかいてね"
-            className="flex-1 rounded-full px-4 py-3 font-bold outline-none border-2 transition-all"
-            style={{
-              borderColor: inputText ? '#C8B8E8' : '#E0E0E0',
-              color: '#4A4A4A',
-              backgroundColor: 'white',
-              minHeight: '52px',
-              fontSize: '1rem',
-            }}
-            disabled={isLoading}
-          />
 
           {/* 送信ボタン */}
           <button
@@ -213,15 +328,106 @@ export default function HanashiPage() {
             className="rounded-full shadow-lg transition-all active:scale-90 flex items-center justify-center"
             style={{
               backgroundColor: inputText.trim() && !isLoading ? '#FFB7C5' : '#E0E0E0',
-              minWidth: '60px',
-              minHeight: '60px',
-              border: '3px solid rgba(255,255,255,0.8)',
+              minWidth: '44px',
+              minHeight: '44px',
+              border: '2px solid rgba(255,255,255,0.8)',
             }}
             aria-label="おくる"
           >
-            <span className="text-2xl">➤</span>
+            <span className="text-xl">➤</span>
           </button>
         </div>
+      </div>
+
+      {/* キーボード切替タブ */}
+      <div
+        className="flex px-4 gap-1 py-1 flex-shrink-0 relative z-10"
+        style={{ backgroundColor: 'rgba(255,255,255,0.9)' }}
+      >
+        {(['hiragana', 'dakuten', 'komoji'] as KanaTab[]).map(t => (
+          <button
+            key={t}
+            onClick={() => setKanaTab(t)}
+            className="flex-1 rounded-full py-1 font-bold text-xs transition-all"
+            style={{
+              backgroundColor: kanaTab === t ? '#C8B8E8' : 'rgba(240,236,250,0.8)',
+              color: '#4A4A4A',
+              border: '1px solid rgba(200,184,232,0.5)',
+              minHeight: '32px',
+            }}
+          >
+            {t === 'hiragana' ? 'ひらがな' : t === 'dakuten' ? 'だくてん' : 'こもじ'}
+          </button>
+        ))}
+      </div>
+
+      {/* かなキーボードエリア（高さ固定） */}
+      <div
+        className="flex-shrink-0 px-3 py-2 relative z-10 overflow-hidden"
+        style={{
+          backgroundColor: 'rgba(255,255,255,0.95)',
+          borderTop: '1px solid rgba(200,184,232,0.3)',
+          height: '180px',
+          overflowX: 'auto',
+          overflowY: 'hidden',
+        }}
+      >
+        {kanaTab === 'hiragana' && (
+          <VerticalGrid cells={HIRAGANA_MAIN} onCharTap={handleKanaTap} />
+        )}
+        {kanaTab === 'dakuten' && (
+          <VerticalGrid cells={DAKUTEN_MAIN} onCharTap={handleKanaTap} />
+        )}
+        {kanaTab === 'komoji' && (
+          <div className="flex flex-col gap-2">
+            {/* SMALL_CHARS: 5列 */}
+            <div
+              className="grid gap-1"
+              style={{ gridTemplateColumns: 'repeat(5, 48px)' }}
+            >
+              {SMALL_CHARS.map((char, i) => (
+                <button
+                  key={`small-${i}`}
+                  onClick={() => handleKanaTap(char)}
+                  className="rounded-full font-bold transition-all active:scale-90 flex items-center justify-center shadow-sm"
+                  style={{
+                    backgroundColor: BUTTON_COLORS[i % BUTTON_COLORS.length],
+                    width: 48,
+                    height: 48,
+                    color: '#4A4A4A',
+                    border: '2px solid rgba(255,255,255,0.7)',
+                    fontSize: '1.2rem',
+                  }}
+                >
+                  {char}
+                </button>
+              ))}
+            </div>
+            {/* YOON_CHARS: 5列 */}
+            <div
+              className="grid gap-1"
+              style={{ gridTemplateColumns: 'repeat(5, 48px)', overflowX: 'auto' }}
+            >
+              {YOON_CHARS.map((char, i) => (
+                <button
+                  key={`yoon-${i}`}
+                  onClick={() => handleKanaTap(char)}
+                  className="rounded-full font-bold transition-all active:scale-90 flex items-center justify-center shadow-sm"
+                  style={{
+                    backgroundColor: BUTTON_COLORS[(i + 2) % BUTTON_COLORS.length],
+                    width: 48,
+                    height: 48,
+                    color: '#4A4A4A',
+                    border: '2px solid rgba(255,255,255,0.7)',
+                    fontSize: '0.75rem',
+                  }}
+                >
+                  {char}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
