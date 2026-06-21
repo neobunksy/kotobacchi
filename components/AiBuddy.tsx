@@ -16,52 +16,12 @@ type AiBuddyProps = {
   onClick?: () => void;
 };
 
-type FramePos = [number, number]; // [col, row]
-
-const BUNNY_GRID = { cols: 4, rows: 6 };
-const GORILLA_GRID = { cols: 5, rows: 5 };
-
-// 各 mood の固定表示フレーム（頻繁に切り替えない）
-const BUNNY = {
-  idle:     [0, 0] as FramePos,
-  talking:  [0, 4] as FramePos,
-  thinking: [0, 1] as FramePos,
-  happy:    [2, 3] as FramePos,
-  blink:    [1, 0] as FramePos,  // まばたき一時フレーム
-  wave:     [3, 3] as FramePos,  // 手振り一時フレーム
-};
-
-const GORILLA = {
-  idle:     [0, 0] as FramePos,
-  talking:  [2, 2] as FramePos,
-  thinking: [1, 1] as FramePos,
-  happy:    [1, 0] as FramePos,
-  blink:    [3, 0] as FramePos,
-  wave:     [4, 1] as FramePos,
-};
-
-function frameToBgStyle(
-  character: AiBuddyCharacter,
-  frame: FramePos,
-  size: number
-): React.CSSProperties {
-  const grid = character === 'bunny' ? BUNNY_GRID : GORILLA_GRID;
-  const src = character === 'bunny' ? '/characters/bunny.png' : '/characters/gorilla.png';
-  const [col, row] = frame;
-  const xPct = grid.cols > 1 ? (col / (grid.cols - 1)) * 100 : 0;
-  const yPct = grid.rows > 1 ? (row / (grid.rows - 1)) * 100 : 0;
-
-  return {
-    position: 'absolute',
-    inset: 0,
-    width: size,
-    height: size,
-    backgroundImage: `url(${src})`,
-    backgroundSize: `${grid.cols * 100}% ${grid.rows * 100}%`,
-    backgroundPosition: `${xPct}% ${yPct}%`,
-    backgroundRepeat: 'no-repeat',
-  };
-}
+// うさぎの目の位置（bunny-idle.png 256x256 基準・%指定）
+// 目の中心に白い丸を重ねてまばたきを再現
+const BUNNY_EYES = [
+  { left: '33%', top: '42%', w: '11%', h: '9%' },  // 左目
+  { left: '57%', top: '42%', w: '11%', h: '9%' },  // 右目
+];
 
 export default function AiBuddy({
   size = 120,
@@ -70,80 +30,140 @@ export default function AiBuddy({
   className = '',
   onClick,
 }: AiBuddyProps) {
-  const frames = character === 'bunny' ? BUNNY : GORILLA;
-  const baseFrame: FramePos = frames[mood] ?? frames.idle;
+  const [isBlinking, setIsBlinking] = useState(false);
+  const [gorillaBlinkOpacity, setGorillaBlinkOpacity] = useState(0);
+  const [isWaving, setIsWaving] = useState(false);
+  const loopRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const seqRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
-  // オーバーレイ（まばたき・手振り）は opacity cross-fade で実現
-  const [overlayFrame, setOverlayFrame] = useState<FramePos>(frames.blink);
-  const [overlayOpacity, setOverlayOpacity] = useState(0);
-  const loopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const sequenceTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-
-  const clearSequence = () => {
-    sequenceTimersRef.current.forEach(t => clearTimeout(t));
-    sequenceTimersRef.current = [];
+  const clearSeq = () => {
+    seqRef.current.forEach(t => clearTimeout(t));
+    seqRef.current = [];
   };
 
-  // idle 中のランダムアクション（まばたき・手振り）
+  // idle 中にランダムでまばたき・手振り
   useEffect(() => {
     if (mood !== 'idle') {
-      if (loopTimerRef.current) clearTimeout(loopTimerRef.current);
-      clearSequence();
-      setOverlayOpacity(0);
+      if (loopRef.current) clearTimeout(loopRef.current);
+      clearSeq();
+      setIsBlinking(false);
+      setGorillaBlinkOpacity(0);
+      setIsWaving(false);
       return;
     }
 
     const loop = () => {
-      const delay = 2500 + Math.random() * 4000;
-      loopTimerRef.current = setTimeout(() => {
-        const isWave = Math.random() < 0.28;
-        const targetFrame = isWave ? frames.wave : frames.blink;
-        const holdMs = isWave ? 750 : 160;
+      const delay = 2200 + Math.random() * 4000;
+      loopRef.current = setTimeout(() => {
+        const rand = Math.random();
 
-        setOverlayFrame(targetFrame);
-
-        // フェードイン → 表示維持 → フェードアウト → 次のループ
-        const t1 = setTimeout(() => setOverlayOpacity(1), 16);
-        const t2 = setTimeout(() => setOverlayOpacity(0), 16 + holdMs);
-        const t3 = setTimeout(() => loop(), 16 + holdMs + 100);
-        sequenceTimersRef.current = [t1, t2, t3];
+        if (rand < 0.65) {
+          // まばたき
+          if (character === 'bunny') {
+            setIsBlinking(true);
+            const t1 = setTimeout(() => { setIsBlinking(false); loop(); }, 170);
+            seqRef.current = [t1];
+          } else {
+            // ゴリラ: opacity クロスフェード
+            setGorillaBlinkOpacity(1);
+            const t1 = setTimeout(() => setGorillaBlinkOpacity(0), 160);
+            const t2 = setTimeout(() => loop(), 320);
+            seqRef.current = [t1, t2];
+          }
+        } else {
+          // 手振り（傾きアニメ）
+          setIsWaving(true);
+          const t1 = setTimeout(() => { setIsWaving(false); loop(); }, 700);
+          seqRef.current = [t1];
+        }
       }, delay);
     };
 
     loop();
 
     return () => {
-      if (loopTimerRef.current) clearTimeout(loopTimerRef.current);
-      clearSequence();
+      if (loopRef.current) clearTimeout(loopRef.current);
+      clearSeq();
     };
-  }, [mood, frames]);
+  }, [mood, character]);
 
-  const animClass =
-    mood === 'talking'  ? 'animate-charTalk'
+  // mood に応じた動きアニメ
+  const motionClass =
+    isWaving       ? 'animate-charWave'
+    : mood === 'talking'  ? 'animate-charTalk'
     : mood === 'thinking' ? 'animate-charThink'
     : mood === 'happy'    ? 'animate-charHappy'
     : 'animate-charFloat';
 
   return (
     <div
-      className={`relative select-none ${onClick ? 'cursor-pointer' : ''} ${className}`}
-      style={{ width: size, height: size }}
+      className={`select-none ${onClick ? 'cursor-pointer' : ''} ${className}`}
+      style={{ width: size, height: size, position: 'relative' }}
       onClick={onClick}
       role={onClick ? 'button' : undefined}
       aria-label={onClick ? 'ことばっちをタップ' : undefined}
     >
-      <div className={animClass} style={{ position: 'relative', width: size, height: size }}>
-        {/* ベースレイヤー（mood に応じた固定フレーム） */}
-        <div style={frameToBgStyle(character, baseFrame, size)} />
+      <div
+        className={motionClass}
+        style={{ position: 'relative', width: '100%', height: '100%' }}
+      >
+        {/* ── うさぎ ── */}
+        {character === 'bunny' && (
+          <>
+            <img
+              src="/characters/bunny-idle.png"
+              alt=""
+              draggable={false}
+              style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
+            />
+            {/* まばたき: 目の上に白い丸を重ねる */}
+            {isBlinking && BUNNY_EYES.map((eye, i) => (
+              <div
+                key={i}
+                style={{
+                  position: 'absolute',
+                  left: eye.left,
+                  top: eye.top,
+                  width: eye.w,
+                  height: eye.h,
+                  backgroundColor: '#ffffff',
+                  borderRadius: '50%',
+                  pointerEvents: 'none',
+                }}
+              />
+            ))}
+          </>
+        )}
 
-        {/* オーバーレイ（まばたき・手振り - opacity でフェード） */}
-        <div
-          style={{
-            ...frameToBgStyle(character, overlayFrame, size),
-            opacity: overlayOpacity,
-            transition: 'opacity 0.08s ease',
-          }}
-        />
+        {/* ── ゴリラ ── */}
+        {character === 'gorilla' && (
+          <>
+            {/* ベース（目が開いている） */}
+            <img
+              src="/characters/gorilla-idle.png"
+              alt=""
+              draggable={false}
+              style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', position: 'absolute', inset: 0 }}
+            />
+            {/* まばたき（目が閉じている）: opacity フェード */}
+            <img
+              src="/characters/gorilla-blink.png"
+              alt=""
+              draggable={false}
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'contain',
+                display: 'block',
+                position: 'absolute',
+                inset: 0,
+                opacity: gorillaBlinkOpacity,
+                transition: 'opacity 0.07s ease',
+                pointerEvents: 'none',
+              }}
+            />
+          </>
+        )}
       </div>
     </div>
   );
