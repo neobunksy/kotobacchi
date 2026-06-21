@@ -17,10 +17,11 @@ type AiBuddyProps = {
 };
 
 // うさぎの目の位置（bunny-idle.png 256x256 基準・%指定）
-// 目の中心に白い丸を重ねてまばたきを再現
+// 目全体を覆う白い楕円でまばたきを再現
+// 目サイズ: 約47x45px（≒18%x17%）なのでオーバーレイは少し大きめに設定
 const BUNNY_EYES = [
-  { left: '33%', top: '42%', w: '11%', h: '9%' },  // 左目
-  { left: '57%', top: '42%', w: '11%', h: '9%' },  // 右目
+  { left: '22%', top: '33%', w: '22%', h: '18%' },  // 左目
+  { left: '50%', top: '33%', w: '22%', h: '18%' },  // 右目
 ];
 
 export default function AiBuddy({
@@ -116,7 +117,7 @@ export default function AiBuddy({
               draggable={false}
               style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
             />
-            {/* まばたき: 目の上に白い丸を重ねる */}
+            {/* まばたき: 目全体を覆う楕円で目閉じを表現 */}
             {isBlinking && BUNNY_EYES.map((eye, i) => (
               <div
                 key={i}
@@ -126,9 +127,10 @@ export default function AiBuddy({
                   top: eye.top,
                   width: eye.w,
                   height: eye.h,
-                  backgroundColor: '#ffffff',
+                  backgroundColor: '#fff5ee',
                   borderRadius: '50%',
                   pointerEvents: 'none',
+                  boxShadow: '0 2px 0 rgba(220,180,170,0.5)',
                 }}
               />
             ))}
