@@ -7,28 +7,20 @@ import BackButton from '@/components/BackButton';
 import StarCounter from '@/components/StarCounter';
 import { speak } from '@/lib/speak';
 
-// 五十音（縦書きグリッド用: 列優先、null = 空セル）
-const HIRAGANA_MAIN: (string | null)[] = [
-  'あ','い','う','え','お',
-  'か','き','く','け','こ',
-  'さ','し','す','せ','そ',
-  'た','ち','つ','て','と',
-  'な','に','ぬ','ね','の',
-  'は','ひ','ふ','へ','ほ',
-  'ま','み','む','め','も',
-  'や', null,'ゆ', null,'よ',
-  'ら','り','る','れ','ろ',
-  'わ', null, null, null,'を',
-  'ん', null, null, null, null,
+// 五十音+濁点 統合グリッド（行優先, 16列×5行, null=空セル）
+const MAIN_GRID: (string | null)[] = [
+  // 行0
+  'あ','か','さ','た','な','は','ま','や','ら','わ','ん', 'が','ざ','だ','ば','ぱ',
+  // 行1
+  'い','き','し','ち','に','ひ','み', null,'り', null, null, 'ぎ','じ','ぢ','び','ぴ',
+  // 行2
+  'う','く','す','つ','ぬ','ふ','む','ゆ','る', null, null, 'ぐ','ず','づ','ぶ','ぷ',
+  // 行3
+  'え','け','せ','て','ね','へ','め', null,'れ', null, null, 'げ','ぜ','で','べ','ぺ',
+  // 行4
+  'お','こ','そ','と','の','ほ','も','よ','ろ','を', null, 'ご','ぞ','ど','ぼ','ぽ',
 ];
-
-const DAKUTEN_MAIN: (string | null)[] = [
-  'が','ぎ','ぐ','げ','ご',
-  'ざ','じ','ず','ぜ','ぞ',
-  'だ','ぢ','づ','で','ど',
-  'ば','び','ぶ','べ','ぼ',
-  'ぱ','ぴ','ぷ','ぺ','ぽ',
-];
+const MAIN_GRID_COLS = 16;
 
 // 小文字・長音（横並び）
 const SMALL_CHARS: string[] = [
@@ -69,8 +61,6 @@ function toKatakana(char: string | null): string | null {
   }).join('');
 }
 
-const KATAKANA_MAIN = HIRAGANA_MAIN.map(toKatakana);
-const DAKUTEN_KATAKANA = DAKUTEN_MAIN.map(toKatakana);
 const SMALL_KATAKANA = SMALL_CHARS.map(c => toKatakana(c) ?? c);
 const YOON_KATAKANA = YOON_CHARS.map(c => toKatakana(c) ?? c);
 
@@ -90,48 +80,32 @@ const BUTTON_COLORS = [
 
 type Tab = 'hiragana' | 'katakana' | 'abc';
 
-// 転置関数（列優先→行優先）
-function transposeGrid(cells: (string | null)[], cols: number, rows: number): (string | null)[] {
-  const result: (string | null)[] = new Array(cols * rows).fill(null);
-  for (let col = 0; col < cols; col++) {
-    for (let row = 0; row < rows; row++) {
-      result[row * cols + col] = cells[col * rows + row] ?? null;
-    }
-  }
-  return result;
-}
-
-// 横並びグリッドコンポーネント（五十音・濁点用）
-function VerticalGrid({
+// 汎用グリッドコンポーネント
+function CharGrid({
   cells,
   cols,
-  rows,
   quizTarget,
   punittoKey,
   onCharClick,
 }: {
   cells: (string | null)[];
   cols: number;
-  rows: number;
   quizTarget: string;
   punittoKey: string | null;
   onCharClick: (char: string) => void;
 }) {
-  // データを転置して行優先に変換
-  const transposed = transposeGrid(cells, cols, rows);
   let colorIdx = 0;
   return (
     <div
       style={{
         display: 'grid',
         gridTemplateColumns: `repeat(${cols}, 56px)`,
-        gridAutoFlow: 'row',
         gap: '4px',
         overflowX: 'auto',
         paddingBottom: '4px',
       }}
     >
-      {transposed.map((char, i) => {
+      {cells.map((char, i) => {
         if (char === null) {
           return <div key={i} style={{ width: 56, height: 56 }} />;
         }
@@ -160,49 +134,6 @@ function VerticalGrid({
   );
 }
 
-// 横並びグリッドコンポーネント
-function HorizontalGrid({
-  chars,
-  cols,
-  colorOffset,
-  quizTarget,
-  punittoKey,
-  onCharClick,
-}: {
-  chars: string[];
-  cols: number;
-  colorOffset: number;
-  quizTarget: string;
-  punittoKey: string | null;
-  onCharClick: (char: string) => void;
-}) {
-  return (
-    <div
-      className="grid gap-1"
-      style={{ gridTemplateColumns: `repeat(${cols}, 56px)` }}
-    >
-      {chars.map((char, i) => (
-        <button
-          key={i}
-          onClick={() => onCharClick(char)}
-          className="rounded-full font-bold transition-all active:scale-90 flex items-center justify-center shadow-md"
-          style={{
-            backgroundColor: BUTTON_COLORS[(colorOffset + i) % BUTTON_COLORS.length],
-            width: 56,
-            height: 56,
-            color: '#4A4A4A',
-            border: quizTarget === char ? '3px solid #4A4A4A' : '2px solid rgba(255,255,255,0.7)',
-            animation: punittoKey === char ? 'punitto 0.3s ease-in-out' : undefined,
-            fontSize: char.length > 1 ? '0.8rem' : '1.4rem',
-          }}
-        >
-          {char}
-        </button>
-      ))}
-    </div>
-  );
-}
-
 export default function MojiPage() {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>('hiragana');
@@ -227,13 +158,11 @@ export default function MojiPage() {
   const getAllChars = useCallback((): string[] => {
     const isKana = tab === 'hiragana' || tab === 'katakana';
     if (isKana) {
-      const mainData = tab === 'hiragana' ? HIRAGANA_MAIN : KATAKANA_MAIN;
-      const dakutenData = tab === 'hiragana' ? DAKUTEN_MAIN : DAKUTEN_KATAKANA;
+      const mainGrid = tab === 'hiragana' ? MAIN_GRID : MAIN_GRID.map(toKatakana);
       const smallData = tab === 'hiragana' ? SMALL_CHARS : SMALL_KATAKANA;
       const yoonData = tab === 'hiragana' ? YOON_CHARS : YOON_KATAKANA;
       return [
-        ...mainData.filter((c): c is string => c !== null),
-        ...dakutenData.filter((c): c is string => c !== null),
+        ...mainGrid.filter((c): c is string => c !== null),
         ...smallData,
         ...yoonData,
       ];
@@ -309,8 +238,6 @@ export default function MojiPage() {
   }));
 
   const isKana = tab === 'hiragana' || tab === 'katakana';
-  const mainData = tab === 'hiragana' ? HIRAGANA_MAIN : KATAKANA_MAIN;
-  const dakutenData = tab === 'hiragana' ? DAKUTEN_MAIN : DAKUTEN_KATAKANA;
   const smallData = tab === 'hiragana' ? SMALL_CHARS : SMALL_KATAKANA;
   const yoonData = tab === 'hiragana' ? YOON_CHARS : YOON_KATAKANA;
 
@@ -414,26 +341,12 @@ export default function MojiPage() {
       <div className="flex-1 overflow-y-auto px-4 pb-24 relative z-10">
         {isKana ? (
           <div className="flex flex-col gap-4">
-            {/* 五十音 */}
+            {/* 五十音+濁点 統合グリッド */}
             <div>
-              <p className="text-xs font-bold mb-1" style={{ color: '#888' }}>五十音</p>
-              <VerticalGrid
-                cells={mainData}
-                cols={11}
-                rows={5}
-                quizTarget={quizTarget}
-                punittoKey={punittoKey}
-                onCharClick={handleCharClick}
-              />
-            </div>
-
-            {/* だくてん */}
-            <div>
-              <p className="text-xs font-bold mb-1" style={{ color: '#888' }}>だくてん・はんだくてん</p>
-              <VerticalGrid
-                cells={dakutenData}
-                cols={5}
-                rows={5}
+              <p className="text-xs font-bold mb-1" style={{ color: '#888' }}>五十音・だくてん</p>
+              <CharGrid
+                cells={tab === 'hiragana' ? MAIN_GRID : MAIN_GRID.map(toKatakana)}
+                cols={MAIN_GRID_COLS}
                 quizTarget={quizTarget}
                 punittoKey={punittoKey}
                 onCharClick={handleCharClick}
@@ -443,10 +356,9 @@ export default function MojiPage() {
             {/* こもじ・おんびき */}
             <div>
               <p className="text-xs font-bold mb-1" style={{ color: '#888' }}>こもじ・おんびき</p>
-              <HorizontalGrid
-                chars={smallData}
+              <CharGrid
+                cells={smallData}
                 cols={5}
-                colorOffset={0}
                 quizTarget={quizTarget}
                 punittoKey={punittoKey}
                 onCharClick={handleCharClick}
@@ -456,10 +368,9 @@ export default function MojiPage() {
             {/* ようおん */}
             <div>
               <p className="text-xs font-bold mb-1" style={{ color: '#888' }}>ようおん</p>
-              <HorizontalGrid
-                chars={yoonData}
+              <CharGrid
+                cells={yoonData}
                 cols={3}
-                colorOffset={2}
                 quizTarget={quizTarget}
                 punittoKey={punittoKey}
                 onCharClick={handleCharClick}
