@@ -1,24 +1,24 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { loadUser, addStars } from '@/lib/store';
 import BackButton from '@/components/BackButton';
 import StarCounter from '@/components/StarCounter';
 import { speak } from '@/lib/speak';
 
-// 五十音+濁点 統合グリッド（行優先, 16列×5行, null=空セル）
+// 五十音+濁点 統合グリッド（行優先, 16列×5行, 右→左: あ行が右端, null=空セル）
 const MAIN_GRID: (string | null)[] = [
-  // 行0
-  'あ','か','さ','た','な','は','ま','や','ら','わ','ん', 'が','ざ','だ','ば','ぱ',
+  // 行0 (右→左: ぱ行…あ行)
+  'ぱ','ば','だ','ざ','が','ん','わ','ら','や','ま','は','な','た','さ','か','あ',
   // 行1
-  'い','き','し','ち','に','ひ','み', null,'り', null, null, 'ぎ','じ','ぢ','び','ぴ',
+  'ぴ','び','ぢ','じ','ぎ', null, null,'り', null,'み','ひ','に','ち','し','き','い',
   // 行2
-  'う','く','す','つ','ぬ','ふ','む','ゆ','る', null, null, 'ぐ','ず','づ','ぶ','ぷ',
+  'ぷ','ぶ','づ','ず','ぐ', null, null,'る','ゆ','む','ふ','ぬ','つ','す','く','う',
   // 行3
-  'え','け','せ','て','ね','へ','め', null,'れ', null, null, 'げ','ぜ','で','べ','ぺ',
+  'ぺ','べ','で','ぜ','げ', null, null,'れ', null,'め','へ','ね','て','せ','け','え',
   // 行4
-  'お','こ','そ','と','の','ほ','も','よ','ろ','を', null, 'ご','ぞ','ど','ぼ','ぽ',
+  'ぽ','ぼ','ど','ぞ','ご', null,'を','ろ','よ','も','ほ','の','と','そ','こ','お',
 ];
 const MAIN_GRID_COLS = 16;
 
@@ -87,49 +87,65 @@ function CharGrid({
   quizTarget,
   punittoKey,
   onCharClick,
+  scrollToEnd,
 }: {
   cells: (string | null)[];
   cols: number;
   quizTarget: string;
   punittoKey: string | null;
   onCharClick: (char: string) => void;
+  scrollToEnd?: boolean;
 }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (scrollToEnd && scrollRef.current) {
+      scrollRef.current.scrollLeft = scrollRef.current.scrollWidth;
+    }
+  }, [scrollToEnd, cells]);
+
   let colorIdx = 0;
   return (
     <div
+      ref={scrollRef}
       style={{
-        display: 'grid',
-        gridTemplateColumns: `repeat(${cols}, 56px)`,
-        gap: '4px',
         overflowX: 'auto',
         paddingBottom: '4px',
       }}
     >
-      {cells.map((char, i) => {
-        if (char === null) {
-          return <div key={i} style={{ width: 56, height: 56 }} />;
-        }
-        const ci = colorIdx++;
-        return (
-          <button
-            key={i}
-            onClick={() => onCharClick(char)}
-            className="rounded-full font-bold transition-all active:scale-90 flex items-center justify-center shadow-md"
-            style={{
-              backgroundColor: BUTTON_COLORS[ci % BUTTON_COLORS.length],
-              width: 56,
-              height: 56,
-              color: '#4A4A4A',
-              border: quizTarget === char ? '3px solid #4A4A4A' : '2px solid rgba(255,255,255,0.7)',
-              animation: punittoKey === char ? 'punitto 0.3s ease-in-out' : undefined,
-              fontSize: char.length > 1 ? '0.8rem' : '1.4rem',
-              flexShrink: 0,
-            }}
-          >
-            {char}
-          </button>
-        );
-      })}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: `repeat(${cols}, 56px)`,
+          gap: '4px',
+        }}
+      >
+        {cells.map((char, i) => {
+          if (char === null) {
+            return <div key={i} style={{ width: 56, height: 56 }} />;
+          }
+          const ci = colorIdx++;
+          return (
+            <button
+              key={i}
+              onClick={() => onCharClick(char)}
+              className="rounded-full font-bold transition-all active:scale-90 flex items-center justify-center shadow-md"
+              style={{
+                backgroundColor: BUTTON_COLORS[ci % BUTTON_COLORS.length],
+                width: 56,
+                height: 56,
+                color: '#4A4A4A',
+                border: quizTarget === char ? '3px solid #4A4A4A' : '2px solid rgba(255,255,255,0.7)',
+                animation: punittoKey === char ? 'punitto 0.3s ease-in-out' : undefined,
+                fontSize: char.length > 1 ? '0.8rem' : '1.4rem',
+                flexShrink: 0,
+              }}
+            >
+              {char}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -350,6 +366,7 @@ export default function MojiPage() {
                 quizTarget={quizTarget}
                 punittoKey={punittoKey}
                 onCharClick={handleCharClick}
+                scrollToEnd={true}
               />
             </div>
 
