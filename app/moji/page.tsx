@@ -90,35 +90,50 @@ const BUTTON_COLORS = [
 
 type Tab = 'hiragana' | 'katakana' | 'abc';
 
-// 縦書きグリッドコンポーネント
+// 転置関数（列優先→行優先）
+function transposeGrid(cells: (string | null)[], cols: number, rows: number): (string | null)[] {
+  const result: (string | null)[] = new Array(cols * rows).fill(null);
+  for (let col = 0; col < cols; col++) {
+    for (let row = 0; row < rows; row++) {
+      result[row * cols + col] = cells[col * rows + row] ?? null;
+    }
+  }
+  return result;
+}
+
+// 横並びグリッドコンポーネント（五十音・濁点用）
 function VerticalGrid({
   cells,
+  cols,
+  rows,
   quizTarget,
   punittoKey,
   onCharClick,
 }: {
   cells: (string | null)[];
+  cols: number;
+  rows: number;
   quizTarget: string;
   punittoKey: string | null;
   onCharClick: (char: string) => void;
 }) {
-  // null以外の文字のインデックスを追跡（色付け用）
+  // データを転置して行優先に変換
+  const transposed = transposeGrid(cells, cols, rows);
   let colorIdx = 0;
   return (
     <div
       style={{
         display: 'grid',
-        gridTemplateRows: 'repeat(5, 56px)',
-        gridAutoFlow: 'column',
-        direction: 'rtl',
+        gridTemplateColumns: `repeat(${cols}, 56px)`,
+        gridAutoFlow: 'row',
         gap: '4px',
         overflowX: 'auto',
         paddingBottom: '4px',
       }}
     >
-      {cells.map((char, i) => {
+      {transposed.map((char, i) => {
         if (char === null) {
-          return <div key={i} style={{ width: 56 }} />;
+          return <div key={i} style={{ width: 56, height: 56 }} />;
         }
         const ci = colorIdx++;
         return (
@@ -404,6 +419,8 @@ export default function MojiPage() {
               <p className="text-xs font-bold mb-1" style={{ color: '#888' }}>五十音</p>
               <VerticalGrid
                 cells={mainData}
+                cols={11}
+                rows={5}
                 quizTarget={quizTarget}
                 punittoKey={punittoKey}
                 onCharClick={handleCharClick}
@@ -415,6 +432,8 @@ export default function MojiPage() {
               <p className="text-xs font-bold mb-1" style={{ color: '#888' }}>だくてん・はんだくてん</p>
               <VerticalGrid
                 cells={dakutenData}
+                cols={5}
+                rows={5}
                 quizTarget={quizTarget}
                 punittoKey={punittoKey}
                 onCharClick={handleCharClick}
