@@ -18,280 +18,487 @@ type AiBuddyProps = {
 };
 
 // ── SVGキャラ: うさぎ ──
-function BunnySvg({ isBlinking }: { isBlinking: boolean }) {
+function BunnySvg({ isBlinking, mood }: { isBlinking: boolean; mood: AiBuddyMood }) {
+  const EYE_L = 39;
+  const EYE_R = 61;
+  const EYE_Y = 46;
+  const EYE_W = 9;
+  const PUPIL_R = 6.5;
+  const HL_R = 2.5;
+  const MOUTH_Y = 57;
+
+  const renderEye = (cx: number) => {
+    if (isBlinking) {
+      return (
+        <path
+          d={`M ${cx - 7} ${EYE_Y} Q ${cx} ${EYE_Y + 5} ${cx + 7} ${EYE_Y}`}
+          stroke="#2A1A1A" strokeWidth="2.5" fill="none" strokeLinecap="round"
+        />
+      );
+    }
+    if (mood === 'happy') {
+      return (
+        <path
+          d={`M ${cx - 8} ${EYE_Y + 2} Q ${cx} ${EYE_Y - 8} ${cx + 8} ${EYE_Y + 2}`}
+          stroke="#2A1A1A" strokeWidth="2.5" fill="none" strokeLinecap="round"
+        />
+      );
+    }
+    return (
+      <>
+        <circle cx={cx} cy={EYE_Y} r={EYE_W} fill="white" stroke="#2A1A1A" strokeWidth="0.8" />
+        <circle cx={cx} cy={EYE_Y} r={PUPIL_R} fill="#1A1A1A" />
+        <circle cx={cx + 2.5} cy={EYE_Y - 2.5} r={HL_R} fill="white" />
+      </>
+    );
+  };
+
+  const renderMouth = () => {
+    if (mood === 'happy') {
+      return <path d={`M40,${MOUTH_Y} Q50,${MOUTH_Y + 10} 60,${MOUTH_Y}`} stroke="#C06080" strokeWidth="2" fill="#FFB7C5" strokeLinecap="round" />;
+    }
+    if (mood === 'talking') {
+      return <ellipse cx="50" cy={MOUTH_Y + 3} rx="5" ry="4" fill="#C06080" opacity="0.7" />;
+    }
+    if (mood === 'thinking') {
+      return <path d={`M44,${MOUTH_Y + 2} Q47,${MOUTH_Y} 50,${MOUTH_Y + 2} Q53,${MOUTH_Y + 4} 56,${MOUTH_Y + 2}`} stroke="#C06080" strokeWidth="1.8" fill="none" />;
+    }
+    // idle
+    return <path d={`M46,${MOUTH_Y} Q50,${MOUTH_Y + 5} 54,${MOUTH_Y}`} stroke="#C06080" strokeWidth="2" fill="none" strokeLinecap="round" />;
+  };
+
   return (
     <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: '100%' }}>
       {/* 体 */}
-      <ellipse cx="50" cy="78" rx="16" ry="12" fill="#F5F0EC" stroke="#E0D0C8" strokeWidth="0.8" />
-      {/* 耳（左） */}
-      <ellipse cx="34" cy="22" rx="6" ry="18" fill="#F0EBE6" stroke="#E0D0C8" strokeWidth="0.8" />
-      <ellipse cx="34" cy="22" rx="3.5" ry="13" fill="#FFB6C1" />
-      {/* 耳（右） */}
-      <ellipse cx="66" cy="22" rx="6" ry="18" fill="#F0EBE6" stroke="#E0D0C8" strokeWidth="0.8" />
-      <ellipse cx="66" cy="22" rx="3.5" ry="13" fill="#FFB6C1" />
+      <ellipse cx="50" cy="82" rx="13" ry="9" fill="#FFF0F5" stroke="#E8D0DA" strokeWidth="1" />
+      {/* 耳左外 */}
+      <ellipse cx="33" cy="18" rx="6" ry="18" fill="#F5E0E8" stroke="#E8D0DA" strokeWidth="1" />
+      {/* 耳左内 */}
+      <ellipse cx="33" cy="18" rx="3.5" ry="13" fill="#FFB6C1" />
+      {/* 耳右外 */}
+      <ellipse cx="67" cy="18" rx="6" ry="18" fill="#F5E0E8" stroke="#E8D0DA" strokeWidth="1" />
+      {/* 耳右内 */}
+      <ellipse cx="67" cy="18" rx="3.5" ry="13" fill="#FFB6C1" />
       {/* 頭 */}
-      <circle cx="50" cy="46" r="26" fill="#F5F0EC" stroke="#E0D0C8" strokeWidth="0.8" />
-      {/* 目（白目） */}
-      {isBlinking ? (
-        <>
-          <path d="M 32 47 Q 40 43 48 47" stroke="#2A1A1A" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-          <path d="M 52 47 Q 60 43 68 47" stroke="#2A1A1A" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-        </>
-      ) : (
-        <>
-          <circle cx="40" cy="47" r="8" fill="white" />
-          <circle cx="60" cy="47" r="8" fill="white" />
-          {/* 黒目 */}
-          <circle cx="40" cy="47" r="5.5" fill="#2A1A1A" />
-          <circle cx="60" cy="47" r="5.5" fill="#2A1A1A" />
-          {/* ハイライト */}
-          <circle cx="42.5" cy="44.5" r="2" fill="white" />
-          <circle cx="62.5" cy="44.5" r="2" fill="white" />
-        </>
-      )}
+      <circle cx="50" cy="44" r="28" fill="#FFF0F5" stroke="#E8D0DA" strokeWidth="1.2" />
+      {/* 目 */}
+      {renderEye(EYE_L)}
+      {renderEye(EYE_R)}
       {/* ほっぺ */}
-      <ellipse cx="37" cy="58" rx="7" ry="4.5" fill="#FFB7C5" opacity="0.55" />
-      <ellipse cx="63" cy="58" rx="7" ry="4.5" fill="#FFB7C5" opacity="0.55" />
+      <ellipse cx="34" cy="55" rx="8" ry="5" fill="#FFB7C5" opacity="0.6" />
+      <ellipse cx="66" cy="55" rx="8" ry="5" fill="#FFB7C5" opacity="0.6" />
       {/* 鼻 */}
-      <circle cx="50" cy="56" r="2.5" fill="#FFB6C1" />
+      <circle cx="50" cy="54" r="2.5" fill="#FFB6C1" />
       {/* 口 */}
-      <path d="M44 62 Q50 66 56 62" stroke="#C06080" strokeWidth="1.8" fill="none" strokeLinecap="round" />
+      {renderMouth()}
     </svg>
   );
 }
 
 // ── SVGキャラ: ゴリラ ──
-function GorillaSvg({ isBlinking }: { isBlinking: boolean }) {
+function GorillaSvg({ isBlinking, mood }: { isBlinking: boolean; mood: AiBuddyMood }) {
+  const EYE_L = 39;
+  const EYE_R = 61;
+  const EYE_Y = 44;
+  const EYE_W = 8.5;
+  const PUPIL_R = 6;
+  const HL_R = 2.2;
+  const MOUTH_Y = 59;
+
+  const renderEye = (cx: number) => {
+    if (isBlinking) {
+      return (
+        <path
+          d={`M ${cx - 7} ${EYE_Y} Q ${cx} ${EYE_Y + 5} ${cx + 7} ${EYE_Y}`}
+          stroke="#2A1A1A" strokeWidth="2.5" fill="none" strokeLinecap="round"
+        />
+      );
+    }
+    if (mood === 'happy') {
+      return (
+        <path
+          d={`M ${cx - 8} ${EYE_Y + 2} Q ${cx} ${EYE_Y - 8} ${cx + 8} ${EYE_Y + 2}`}
+          stroke="#2A1A1A" strokeWidth="2.5" fill="none" strokeLinecap="round"
+        />
+      );
+    }
+    return (
+      <>
+        <circle cx={cx} cy={EYE_Y} r={EYE_W} fill="white" stroke="#2A1A1A" strokeWidth="0.8" />
+        <circle cx={cx} cy={EYE_Y} r={PUPIL_R} fill="#1A1A1A" />
+        <circle cx={cx + 2.5} cy={EYE_Y - 2.5} r={HL_R} fill="white" />
+      </>
+    );
+  };
+
+  const renderMouth = () => {
+    if (mood === 'happy') {
+      return <path d={`M40,${MOUTH_Y} Q50,${MOUTH_Y + 10} 60,${MOUTH_Y}`} stroke="#C06080" strokeWidth="2" fill="#FFB7C5" strokeLinecap="round" />;
+    }
+    if (mood === 'talking') {
+      return <ellipse cx="50" cy={MOUTH_Y + 3} rx="5" ry="4" fill="#C06080" opacity="0.7" />;
+    }
+    if (mood === 'thinking') {
+      return <path d={`M44,${MOUTH_Y + 2} Q47,${MOUTH_Y} 50,${MOUTH_Y + 2} Q53,${MOUTH_Y + 4} 56,${MOUTH_Y + 2}`} stroke="#C06080" strokeWidth="1.8" fill="none" />;
+    }
+    return <path d={`M46,${MOUTH_Y} Q50,${MOUTH_Y + 5} 54,${MOUTH_Y}`} stroke="#C06080" strokeWidth="2" fill="none" strokeLinecap="round" />;
+  };
+
   return (
     <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: '100%' }}>
       {/* 体 */}
-      <ellipse cx="50" cy="78" rx="16" ry="12" fill="#6B5040" />
-      {/* 耳（左） */}
-      <circle cx="24" cy="46" r="9" fill="#5A4030" />
-      {/* 耳（右） */}
-      <circle cx="76" cy="46" r="9" fill="#5A4030" />
+      <ellipse cx="50" cy="82" rx="14" ry="10" fill="#9B8BB0" />
+      {/* 耳左 */}
+      <circle cx="22" cy="44" r="10" fill="#8A7A9F" stroke="#6A5A7F" strokeWidth="0.8" />
+      {/* 耳右 */}
+      <circle cx="78" cy="44" r="10" fill="#8A7A9F" stroke="#6A5A7F" strokeWidth="0.8" />
       {/* 頭 */}
-      <circle cx="50" cy="46" r="26" fill="#6B5040" />
-      {/* 顔のマスク部分 */}
-      <ellipse cx="50" cy="50" rx="20" ry="18" fill="#C8A882" />
-      {/* 目（白目） */}
-      {isBlinking ? (
-        <>
-          <path d="M 32 47 Q 40 43 48 47" stroke="#2A1A1A" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-          <path d="M 52 47 Q 60 43 68 47" stroke="#2A1A1A" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-        </>
-      ) : (
-        <>
-          <circle cx="40" cy="47" r="8" fill="white" />
-          <circle cx="60" cy="47" r="8" fill="white" />
-          {/* 黒目 */}
-          <circle cx="40" cy="47" r="5.5" fill="#2A1A1A" />
-          <circle cx="60" cy="47" r="5.5" fill="#2A1A1A" />
-          {/* ハイライト */}
-          <circle cx="42.5" cy="44.5" r="2" fill="white" />
-          <circle cx="62.5" cy="44.5" r="2" fill="white" />
-        </>
-      )}
+      <circle cx="50" cy="42" r="28" fill="#9B8BB0" stroke="#6A5A7F" strokeWidth="1.2" />
+      {/* 頭のコブ（頭頂部の盛り上がり） */}
+      <ellipse cx="50" cy="16" rx="10" ry="6" fill="#9B8BB0" />
+      {/* 顔マスク */}
+      <ellipse cx="50" cy="50" rx="19" ry="16" fill="#D4C0A8" />
+      {/* 目 */}
+      {renderEye(EYE_L)}
+      {renderEye(EYE_R)}
       {/* ほっぺ */}
-      <ellipse cx="37" cy="58" rx="7" ry="4.5" fill="#FFB7C5" opacity="0.55" />
-      <ellipse cx="63" cy="58" rx="7" ry="4.5" fill="#FFB7C5" opacity="0.55" />
+      <ellipse cx="34" cy="58" rx="8" ry="5" fill="#FFB7C5" opacity="0.6" />
+      <ellipse cx="66" cy="58" rx="8" ry="5" fill="#FFB7C5" opacity="0.6" />
       {/* 鼻 */}
-      <ellipse cx="50" cy="55" rx="5" ry="4" fill="#3A2010" />
-      <ellipse cx="47.5" cy="54" rx="1.8" ry="1.5" fill="#2A1008" />
-      <ellipse cx="52.5" cy="54" rx="1.8" ry="1.5" fill="#2A1008" />
+      <ellipse cx="50" cy="54" rx="5.5" ry="4" fill="#5A3A20" />
+      <ellipse cx="47.5" cy="53" rx="2" ry="1.5" fill="#3A2010" />
+      <ellipse cx="52.5" cy="53" rx="2" ry="1.5" fill="#3A2010" />
       {/* 口 */}
-      <path d="M43 63 Q50 69 57 63" stroke="#C06080" strokeWidth="2" fill="none" strokeLinecap="round" />
+      {renderMouth()}
     </svg>
   );
 }
 
 // ── SVGキャラ: 猫 ──
-function CatSvg({ isBlinking }: { isBlinking: boolean }) {
+function CatSvg({ isBlinking, mood }: { isBlinking: boolean; mood: AiBuddyMood }) {
+  const EYE_L = 39;
+  const EYE_R = 61;
+  const EYE_Y = 45;
+  const MOUTH_Y = 57;
+
+  const renderEye = (cx: number) => {
+    if (isBlinking) {
+      return (
+        <path
+          d={`M ${cx - 7} ${EYE_Y} Q ${cx} ${EYE_Y + 5} ${cx + 7} ${EYE_Y}`}
+          stroke="#2A1A1A" strokeWidth="2.5" fill="none" strokeLinecap="round"
+        />
+      );
+    }
+    if (mood === 'happy') {
+      return (
+        <path
+          d={`M ${cx - 8} ${EYE_Y + 2} Q ${cx} ${EYE_Y - 8} ${cx + 8} ${EYE_Y + 2}`}
+          stroke="#2A1A1A" strokeWidth="2.5" fill="none" strokeLinecap="round"
+        />
+      );
+    }
+    // 猫目（縦細）
+    return (
+      <>
+        <ellipse cx={cx} cy={EYE_Y} rx="6.5" ry="8" fill="white" stroke="#2A1A1A" strokeWidth="0.8" />
+        <ellipse cx={cx} cy={EYE_Y} rx="4" ry="6.5" fill="#1A1A1A" />
+        <circle cx={cx + 1.5} cy={EYE_Y - 2} r="1.8" fill="white" />
+      </>
+    );
+  };
+
+  const renderMouth = () => {
+    if (mood === 'happy') {
+      return <path d={`M40,${MOUTH_Y} Q50,${MOUTH_Y + 10} 60,${MOUTH_Y}`} stroke="#C06080" strokeWidth="2" fill="#FFB7C5" strokeLinecap="round" />;
+    }
+    if (mood === 'talking') {
+      return <ellipse cx="50" cy={MOUTH_Y + 3} rx="5" ry="4" fill="#C06080" opacity="0.7" />;
+    }
+    if (mood === 'thinking') {
+      return <path d={`M44,${MOUTH_Y + 2} Q47,${MOUTH_Y} 50,${MOUTH_Y + 2} Q53,${MOUTH_Y + 4} 56,${MOUTH_Y + 2}`} stroke="#C06080" strokeWidth="1.8" fill="none" />;
+    }
+    return <path d={`M46,${MOUTH_Y} Q50,${MOUTH_Y + 5} 54,${MOUTH_Y}`} stroke="#C06080" strokeWidth="2" fill="none" strokeLinecap="round" />;
+  };
+
   return (
     <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: '100%' }}>
       {/* 体 */}
-      <ellipse cx="50" cy="78" rx="16" ry="12" fill="#F4C890" />
-      {/* 耳（左） */}
-      <polygon points="24,30 18,12 34,26" fill="#F4C890" />
-      <polygon points="25,28 21,15 31,25" fill="#FFB6C1" />
-      {/* 耳（右） */}
-      <polygon points="76,30 82,12 66,26" fill="#F4C890" />
-      <polygon points="75,28 79,15 69,25" fill="#FFB6C1" />
+      <ellipse cx="50" cy="82" rx="13" ry="9" fill="#F5C5A0" />
+      {/* 耳左外 */}
+      <polygon points="24,30 16,10 36,26" fill="#F5C5A0" stroke="#D4A070" strokeWidth="1" />
+      {/* 耳左内 */}
+      <polygon points="26,28 21,14 33,25" fill="#FFB6C1" />
+      {/* 耳右外 */}
+      <polygon points="76,30 84,10 64,26" fill="#F5C5A0" stroke="#D4A070" strokeWidth="1" />
+      {/* 耳右内 */}
+      <polygon points="74,28 79,14 67,25" fill="#FFB6C1" />
       {/* 頭 */}
-      <circle cx="50" cy="46" r="26" fill="#F4C890" />
-      {/* 目（白目） */}
-      {isBlinking ? (
-        <>
-          <path d="M 32 47 Q 40 43 48 47" stroke="#2A1A1A" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-          <path d="M 52 47 Q 60 43 68 47" stroke="#2A1A1A" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-        </>
-      ) : (
-        <>
-          <ellipse cx="40" cy="47" rx="6" ry="7" fill="white" />
-          <ellipse cx="60" cy="47" rx="6" ry="7" fill="white" />
-          {/* 黒目 */}
-          <ellipse cx="40" cy="47" rx="4" ry="5.5" fill="#2A1A1A" />
-          <ellipse cx="60" cy="47" rx="4" ry="5.5" fill="#2A1A1A" />
-          {/* ハイライト */}
-          <circle cx="42" cy="44.5" r="1.8" fill="white" />
-          <circle cx="62" cy="44.5" r="1.8" fill="white" />
-        </>
-      )}
+      <circle cx="50" cy="44" r="27" fill="#F5C5A0" stroke="#D4A070" strokeWidth="1.2" />
+      {/* おでこの縞（3本線） */}
+      <line x1="48" y1="22" x2="46" y2="30" stroke="#D4A070" strokeWidth="1" opacity="0.6" />
+      <line x1="50" y1="20" x2="50" y2="29" stroke="#D4A070" strokeWidth="1" opacity="0.6" />
+      <line x1="52" y1="22" x2="54" y2="30" stroke="#D4A070" strokeWidth="1" opacity="0.6" />
+      {/* 目 */}
+      {renderEye(EYE_L)}
+      {renderEye(EYE_R)}
       {/* ほっぺ */}
-      <ellipse cx="37" cy="58" rx="7" ry="4.5" fill="#FFB7C5" opacity="0.55" />
-      <ellipse cx="63" cy="58" rx="7" ry="4.5" fill="#FFB7C5" opacity="0.55" />
-      {/* ヒゲ（左） */}
-      <line x1="22" y1="54" x2="38" y2="55" stroke="#C8A070" strokeWidth="0.8" opacity="0.7" />
-      <line x1="20" y1="57" x2="38" y2="57" stroke="#C8A070" strokeWidth="0.8" opacity="0.7" />
-      <line x1="22" y1="60" x2="38" y2="59" stroke="#C8A070" strokeWidth="0.8" opacity="0.7" />
-      {/* ヒゲ（右） */}
-      <line x1="78" y1="54" x2="62" y2="55" stroke="#C8A070" strokeWidth="0.8" opacity="0.7" />
-      <line x1="80" y1="57" x2="62" y2="57" stroke="#C8A070" strokeWidth="0.8" opacity="0.7" />
-      <line x1="78" y1="60" x2="62" y2="59" stroke="#C8A070" strokeWidth="0.8" opacity="0.7" />
+      <ellipse cx="34" cy="55" rx="8" ry="5" fill="#FFB7C5" opacity="0.6" />
+      <ellipse cx="66" cy="55" rx="8" ry="5" fill="#FFB7C5" opacity="0.6" />
+      {/* ヒゲ左3本 */}
+      <line x1="20" y1="52" x2="37" y2="54" stroke="#C8A070" strokeWidth="0.8" opacity="0.5" />
+      <line x1="18" y1="56" x2="37" y2="56" stroke="#C8A070" strokeWidth="0.8" opacity="0.5" />
+      <line x1="20" y1="60" x2="37" y2="58" stroke="#C8A070" strokeWidth="0.8" opacity="0.5" />
+      {/* ヒゲ右3本 */}
+      <line x1="80" y1="52" x2="63" y2="54" stroke="#C8A070" strokeWidth="0.8" opacity="0.5" />
+      <line x1="82" y1="56" x2="63" y2="56" stroke="#C8A070" strokeWidth="0.8" opacity="0.5" />
+      <line x1="80" y1="60" x2="63" y2="58" stroke="#C8A070" strokeWidth="0.8" opacity="0.5" />
       {/* 鼻 */}
-      <ellipse cx="50" cy="56" rx="2.5" ry="1.8" fill="#FFB6C1" />
+      <ellipse cx="50" cy="54" rx="2.5" ry="2" fill="#FFB6C1" />
       {/* 口 */}
-      <path d="M44 62 Q50 66 56 62" stroke="#C06080" strokeWidth="1.8" fill="none" strokeLinecap="round" />
+      {renderMouth()}
     </svg>
   );
 }
 
 // ── SVGキャラ: 犬 ──
-function DogSvg({ isBlinking }: { isBlinking: boolean }) {
+function DogSvg({ isBlinking, mood }: { isBlinking: boolean; mood: AiBuddyMood }) {
+  const EYE_L = 39;
+  const EYE_R = 61;
+  const EYE_Y = 44;
+  const EYE_W = 9;
+  const PUPIL_R = 6.5;
+  const HL_R = 2.5;
+  const MOUTH_Y = 64;
+
+  const renderEye = (cx: number) => {
+    if (isBlinking) {
+      return (
+        <path
+          d={`M ${cx - 7} ${EYE_Y} Q ${cx} ${EYE_Y + 5} ${cx + 7} ${EYE_Y}`}
+          stroke="#2A1A1A" strokeWidth="2.5" fill="none" strokeLinecap="round"
+        />
+      );
+    }
+    if (mood === 'happy') {
+      return (
+        <path
+          d={`M ${cx - 8} ${EYE_Y + 2} Q ${cx} ${EYE_Y - 8} ${cx + 8} ${EYE_Y + 2}`}
+          stroke="#2A1A1A" strokeWidth="2.5" fill="none" strokeLinecap="round"
+        />
+      );
+    }
+    return (
+      <>
+        <circle cx={cx} cy={EYE_Y} r={EYE_W} fill="white" stroke="#2A1A1A" strokeWidth="0.8" />
+        <circle cx={cx} cy={EYE_Y} r={PUPIL_R} fill="#1A1A1A" />
+        <circle cx={cx + 2.5} cy={EYE_Y - 2.5} r={HL_R} fill="white" />
+      </>
+    );
+  };
+
+  const renderMouth = () => {
+    if (mood === 'happy') {
+      return <path d={`M40,${MOUTH_Y} Q50,${MOUTH_Y + 10} 60,${MOUTH_Y}`} stroke="#C06080" strokeWidth="2" fill="#FFB7C5" strokeLinecap="round" />;
+    }
+    if (mood === 'talking') {
+      return <ellipse cx="50" cy={MOUTH_Y + 3} rx="5" ry="4" fill="#C06080" opacity="0.7" />;
+    }
+    if (mood === 'thinking') {
+      return <path d={`M44,${MOUTH_Y + 2} Q47,${MOUTH_Y} 50,${MOUTH_Y + 2} Q53,${MOUTH_Y + 4} 56,${MOUTH_Y + 2}`} stroke="#C06080" strokeWidth="1.8" fill="none" />;
+    }
+    return <path d={`M46,${MOUTH_Y} Q50,${MOUTH_Y + 5} 54,${MOUTH_Y}`} stroke="#C06080" strokeWidth="2" fill="none" strokeLinecap="round" />;
+  };
+
+  const showTongue = mood === 'idle' || mood === 'happy';
+
   return (
     <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: '100%' }}>
       {/* 体 */}
-      <ellipse cx="50" cy="78" rx="16" ry="12" fill="#E8C99A" />
-      {/* 垂れ耳（左） */}
-      <ellipse cx="21" cy="50" rx="11" ry="16" fill="#C8956C" />
-      {/* 垂れ耳（右） */}
-      <ellipse cx="79" cy="50" rx="11" ry="16" fill="#C8956C" />
+      <ellipse cx="50" cy="82" rx="13" ry="9" fill="#EDD5A0" />
+      {/* 垂れ耳左 */}
+      <ellipse cx="20" cy="53" rx="10" ry="19" fill="#C8956C" stroke="#A07040" strokeWidth="0.8" />
+      {/* 垂れ耳右 */}
+      <ellipse cx="80" cy="53" rx="10" ry="19" fill="#C8956C" stroke="#A07040" strokeWidth="0.8" />
       {/* 頭 */}
-      <circle cx="50" cy="46" r="26" fill="#E8C99A" />
-      {/* 目（白目） */}
-      {isBlinking ? (
-        <>
-          <path d="M 32 47 Q 40 43 48 47" stroke="#2A1A1A" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-          <path d="M 52 47 Q 60 43 68 47" stroke="#2A1A1A" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-        </>
-      ) : (
-        <>
-          <circle cx="40" cy="47" r="8" fill="white" />
-          <circle cx="60" cy="47" r="8" fill="white" />
-          {/* 黒目 */}
-          <circle cx="40" cy="47" r="5.5" fill="#2A1A1A" />
-          <circle cx="60" cy="47" r="5.5" fill="#2A1A1A" />
-          {/* ハイライト */}
-          <circle cx="42.5" cy="44.5" r="2" fill="white" />
-          <circle cx="62.5" cy="44.5" r="2" fill="white" />
-        </>
-      )}
+      <circle cx="50" cy="42" r="28" fill="#EDD5A0" stroke="#C0A070" strokeWidth="1.2" />
+      {/* 目 */}
+      {renderEye(EYE_L)}
+      {renderEye(EYE_R)}
       {/* ほっぺ */}
-      <ellipse cx="37" cy="58" rx="7" ry="4.5" fill="#FFB7C5" opacity="0.55" />
-      <ellipse cx="63" cy="58" rx="7" ry="4.5" fill="#FFB7C5" opacity="0.55" />
-      {/* 大きな鼻 */}
-      <ellipse cx="50" cy="58" rx="8" ry="6" fill="#2A1A0A" />
-      <ellipse cx="47.5" cy="56" rx="2" ry="1.5" fill="rgba(255,255,255,0.3)" />
+      <ellipse cx="34" cy="55" rx="8" ry="5" fill="#FFB7C5" opacity="0.6" />
+      <ellipse cx="66" cy="55" rx="8" ry="5" fill="#FFB7C5" opacity="0.6" />
+      {/* 大きな丸鼻 */}
+      <ellipse cx="50" cy="57" rx="8" ry="6" fill="#3A2010" stroke="#2A1008" strokeWidth="0.5" />
+      <ellipse cx="47" cy="55" rx="2.2" ry="1.6" fill="rgba(255,255,255,0.25)" />
       {/* 口 */}
-      <path d="M43 65 Q50 70 57 65" stroke="#C06080" strokeWidth="1.8" fill="none" strokeLinecap="round" />
-      {/* 舌 */}
-      <ellipse cx="50" cy="69" rx="5" ry="3.5" fill="#FF8FAB" />
+      {renderMouth()}
+      {/* 舌（idle/happyのみ） */}
+      {showTongue && <ellipse cx="50" cy="68" rx="6" ry="4" fill="#FF8FAB" />}
     </svg>
   );
 }
 
 // ── SVGキャラ: ナマケモノ ──
-function SlothSvg({ isBlinking }: { isBlinking: boolean }) {
+function SlothSvg({ isBlinking, mood }: { isBlinking: boolean; mood: AiBuddyMood }) {
+  const EYE_L = 39;
+  const EYE_R = 61;
+  const EYE_Y = 46;
+  const EYE_W = 8.5;
+  const PUPIL_R = 6;
+  const HL_R = 2;
+  const MOUTH_Y = 60;
+
+  const renderEye = (cx: number) => {
+    if (isBlinking) {
+      return (
+        <path
+          d={`M ${cx - 7} ${EYE_Y} Q ${cx} ${EYE_Y + 5} ${cx + 7} ${EYE_Y}`}
+          stroke="#2A1A1A" strokeWidth="2.5" fill="none" strokeLinecap="round"
+        />
+      );
+    }
+    if (mood === 'happy') {
+      return (
+        <path
+          d={`M ${cx - 8} ${EYE_Y + 2} Q ${cx} ${EYE_Y - 8} ${cx + 8} ${EYE_Y + 2}`}
+          stroke="#2A1A1A" strokeWidth="2.5" fill="none" strokeLinecap="round"
+        />
+      );
+    }
+    return (
+      <>
+        <circle cx={cx} cy={EYE_Y} r={EYE_W} fill="white" stroke="#2A1A1A" strokeWidth="0.8" />
+        <circle cx={cx} cy={EYE_Y} r={PUPIL_R} fill="#1A1A1A" />
+        <circle cx={cx + 2.5} cy={EYE_Y - 2.5} r={HL_R} fill="white" />
+        {/* idle時のみ半目まぶた */}
+        {mood === 'idle' && (
+          <rect x={cx - 9} y={EYE_Y - 9} width="18" height="9" rx="4" fill="#B0C898" />
+        )}
+      </>
+    );
+  };
+
+  const renderMouth = () => {
+    if (mood === 'happy') {
+      return <path d={`M40,${MOUTH_Y} Q50,${MOUTH_Y + 10} 60,${MOUTH_Y}`} stroke="#C06080" strokeWidth="2" fill="#FFB7C5" strokeLinecap="round" />;
+    }
+    if (mood === 'talking') {
+      return <ellipse cx="50" cy={MOUTH_Y + 3} rx="5" ry="4" fill="#C06080" opacity="0.7" />;
+    }
+    if (mood === 'thinking') {
+      return <path d={`M44,${MOUTH_Y + 2} Q47,${MOUTH_Y} 50,${MOUTH_Y + 2} Q53,${MOUTH_Y + 4} 56,${MOUTH_Y + 2}`} stroke="#C06080" strokeWidth="1.8" fill="none" />;
+    }
+    return <path d={`M46,${MOUTH_Y} Q50,${MOUTH_Y + 5} 54,${MOUTH_Y}`} stroke="#C06080" strokeWidth="2" fill="none" strokeLinecap="round" />;
+  };
+
   return (
     <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: '100%' }}>
       {/* 体 */}
-      <ellipse cx="50" cy="78" rx="16" ry="12" fill="#A8BF94" />
-      {/* 耳（左） */}
-      <circle cx="24" cy="38" r="8" fill="#90A87C" />
-      {/* 耳（右） */}
-      <circle cx="76" cy="38" r="8" fill="#90A87C" />
+      <ellipse cx="50" cy="82" rx="14" ry="10" fill="#B0C898" />
+      {/* 耳左 */}
+      <circle cx="23" cy="36" r="9" fill="#A0B888" stroke="#80A060" strokeWidth="0.8" />
+      {/* 耳右 */}
+      <circle cx="77" cy="36" r="9" fill="#A0B888" stroke="#80A060" strokeWidth="0.8" />
       {/* 頭 */}
-      <circle cx="50" cy="46" r="26" fill="#A8BF94" />
-      {/* 顔の薄い部分 */}
-      <ellipse cx="50" cy="52" rx="18" ry="14" fill="#C4D8B0" />
-      {/* 目（半目がデフォルト） */}
-      {isBlinking ? (
-        <>
-          <path d="M 32 47 Q 40 43 48 47" stroke="#2A1A1A" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-          <path d="M 52 47 Q 60 43 68 47" stroke="#2A1A1A" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-        </>
-      ) : (
-        <>
-          <circle cx="40" cy="47" r="8" fill="white" />
-          <circle cx="60" cy="47" r="8" fill="white" />
-          {/* 黒目 */}
-          <circle cx="40" cy="47" r="5.5" fill="#2A1A1A" />
-          <circle cx="60" cy="47" r="5.5" fill="#2A1A1A" />
-          {/* ハイライト */}
-          <circle cx="42.5" cy="44.5" r="2" fill="white" />
-          <circle cx="62.5" cy="44.5" r="2" fill="white" />
-          {/* まぶた（半目・眠そう） */}
-          <rect x="32" y="39" width="16" height="8" rx="3" fill="#A8BF94" />
-          <rect x="52" y="39" width="16" height="8" rx="3" fill="#A8BF94" />
-        </>
-      )}
+      <circle cx="50" cy="43" r="28" fill="#B0C898" stroke="#80A060" strokeWidth="1.2" />
+      {/* 顔マスク */}
+      <ellipse cx="50" cy="50" rx="19" ry="15" fill="#D0E0C0" />
+      {/* 目の周りのダークリング */}
+      <ellipse cx="39" cy="46" rx="11" ry="10" fill="#7A6040" opacity="0.4" />
+      <ellipse cx="61" cy="46" rx="11" ry="10" fill="#7A6040" opacity="0.4" />
+      {/* 目 */}
+      {renderEye(EYE_L)}
+      {renderEye(EYE_R)}
       {/* ほっぺ */}
-      <ellipse cx="37" cy="58" rx="7" ry="4.5" fill="#FFB7C5" opacity="0.55" />
-      <ellipse cx="63" cy="58" rx="7" ry="4.5" fill="#FFB7C5" opacity="0.55" />
+      <ellipse cx="34" cy="57" rx="8" ry="5" fill="#FFB7C5" opacity="0.6" />
+      <ellipse cx="66" cy="57" rx="8" ry="5" fill="#FFB7C5" opacity="0.6" />
       {/* 鼻 */}
-      <ellipse cx="50" cy="58" rx="3" ry="2" fill="#7A9068" />
+      <ellipse cx="50" cy="57" rx="3" ry="2" fill="#7A9068" />
       {/* 口 */}
-      <path d="M44 62 Q50 66 56 62" stroke="#C06080" strokeWidth="1.8" fill="none" strokeLinecap="round" />
-      {/* ひっかき爪（左腕） */}
-      <path d="M 32 78 Q 24 82 22 88" stroke="#90A87C" strokeWidth="4" fill="none" strokeLinecap="round" />
-      {/* ひっかき爪（右腕） */}
-      <path d="M 68 78 Q 76 82 78 88" stroke="#90A87C" strokeWidth="4" fill="none" strokeLinecap="round" />
+      {renderMouth()}
+      {/* 爪（体の下にチラ見え） */}
+      <path d="M43,86 L41,90" stroke="#80A060" strokeWidth="2.5" strokeLinecap="round" />
+      <path d="M40,85 L37,89" stroke="#80A060" strokeWidth="2.5" strokeLinecap="round" />
+      <path d="M57,86 L59,90" stroke="#80A060" strokeWidth="2.5" strokeLinecap="round" />
+      <path d="M60,85 L63,89" stroke="#80A060" strokeWidth="2.5" strokeLinecap="round" />
     </svg>
   );
 }
 
 // ── SVGキャラ: モモンガ ──
-function MomongaSvg({ isBlinking }: { isBlinking: boolean }) {
+function MomongaSvg({ isBlinking, mood }: { isBlinking: boolean; mood: AiBuddyMood }) {
+  const EYE_L = 37;
+  const EYE_R = 63;
+  const EYE_Y = 46;
+  const EYE_W = 12;
+  const PUPIL_R = 9;
+  const HL_R = 3;
+  const MOUTH_Y = 63;
+
+  const renderEye = (cx: number) => {
+    if (isBlinking) {
+      return (
+        <path
+          d={`M ${cx - 10} ${EYE_Y} Q ${cx} ${EYE_Y + 7} ${cx + 10} ${EYE_Y}`}
+          stroke="#2A1A1A" strokeWidth="2.5" fill="none" strokeLinecap="round"
+        />
+      );
+    }
+    if (mood === 'happy') {
+      return (
+        <path
+          d={`M ${cx - 11} ${EYE_Y + 2} Q ${cx} ${EYE_Y - 10} ${cx + 11} ${EYE_Y + 2}`}
+          stroke="#2A1A1A" strokeWidth="2.5" fill="none" strokeLinecap="round"
+        />
+      );
+    }
+    return (
+      <>
+        <circle cx={cx} cy={EYE_Y} r={EYE_W} fill="white" stroke="#2A1A1A" strokeWidth="0.8" />
+        <circle cx={cx} cy={EYE_Y} r={PUPIL_R} fill="#1A1A1A" />
+        <circle cx={cx + 2.5} cy={EYE_Y - 2.5} r={HL_R} fill="white" />
+      </>
+    );
+  };
+
+  const renderMouth = () => {
+    if (mood === 'happy') {
+      return <path d={`M40,${MOUTH_Y} Q50,${MOUTH_Y + 10} 60,${MOUTH_Y}`} stroke="#C06080" strokeWidth="2" fill="#FFB7C5" strokeLinecap="round" />;
+    }
+    if (mood === 'talking') {
+      return <ellipse cx="50" cy={MOUTH_Y + 3} rx="5" ry="4" fill="#C06080" opacity="0.7" />;
+    }
+    if (mood === 'thinking') {
+      return <path d={`M44,${MOUTH_Y + 2} Q47,${MOUTH_Y} 50,${MOUTH_Y + 2} Q53,${MOUTH_Y + 4} 56,${MOUTH_Y + 2}`} stroke="#C06080" strokeWidth="1.8" fill="none" />;
+    }
+    return <path d={`M46,${MOUTH_Y} Q50,${MOUTH_Y + 5} 54,${MOUTH_Y}`} stroke="#C06080" strokeWidth="2" fill="none" strokeLinecap="round" />;
+  };
+
   return (
     <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: '100%' }}>
-      {/* 滑空膜（左） */}
-      <path d="M28 56 Q8 72 14 86 Q28 76 36 70 Z" fill="#C8C4E0" opacity="0.6" />
-      {/* 滑空膜（右） */}
-      <path d="M72 56 Q92 72 86 86 Q72 76 64 70 Z" fill="#C8C4E0" opacity="0.6" />
+      {/* 滑空膜左 */}
+      <path d="M29,58 Q8,74 12,88 Q28,78 37,70 Z" fill="#C0B8E8" opacity="0.65" />
+      {/* 滑空膜右 */}
+      <path d="M71,58 Q92,74 88,88 Q72,78 63,70 Z" fill="#C0B8E8" opacity="0.65" />
       {/* 体 */}
-      <ellipse cx="50" cy="78" rx="16" ry="12" fill="#D8D4EC" />
-      {/* 耳（左） */}
-      <ellipse cx="26" cy="28" rx="5" ry="7" fill="#BDBDE8" />
-      {/* 耳（右） */}
-      <ellipse cx="74" cy="28" rx="5" ry="7" fill="#BDBDE8" />
+      <ellipse cx="50" cy="82" rx="13" ry="9" fill="#D0C8F0" />
+      {/* 耳左 */}
+      <ellipse cx="27" cy="26" rx="6" ry="8" fill="#C0B8E8" stroke="#A0A0D0" strokeWidth="0.8" />
+      {/* 耳右 */}
+      <ellipse cx="73" cy="26" rx="6" ry="8" fill="#C0B8E8" stroke="#A0A0D0" strokeWidth="0.8" />
       {/* 頭 */}
-      <circle cx="50" cy="46" r="26" fill="#D8D4EC" />
-      {/* 目（超巨大） */}
-      {isBlinking ? (
-        <>
-          <path d="M 25 48 Q 37 42 49 48" stroke="#2A1A1A" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-          <path d="M 51 48 Q 63 42 75 48" stroke="#2A1A1A" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-        </>
-      ) : (
-        <>
-          {/* 白目（超大きい） */}
-          <circle cx="37" cy="48" r="12" fill="white" />
-          <circle cx="63" cy="48" r="12" fill="white" />
-          {/* 黒目 */}
-          <circle cx="37" cy="48" r="9" fill="#1A1A1A" />
-          <circle cx="63" cy="48" r="9" fill="#1A1A1A" />
-          {/* ハイライト */}
-          <circle cx="41" cy="44" r="3" fill="white" />
-          <circle cx="67" cy="44" r="3" fill="white" />
-        </>
-      )}
+      <circle cx="50" cy="44" r="28" fill="#D0C8F0" stroke="#A0A0D0" strokeWidth="1.2" />
+      {/* 目（特大サイズ） */}
+      {renderEye(EYE_L)}
+      {renderEye(EYE_R)}
       {/* ほっぺ */}
-      <ellipse cx="37" cy="62" rx="7" ry="4.5" fill="#FFB7C5" opacity="0.55" />
-      <ellipse cx="63" cy="62" rx="7" ry="4.5" fill="#FFB7C5" opacity="0.55" />
+      <ellipse cx="34" cy="60" rx="7" ry="4.5" fill="#FFB7C5" opacity="0.6" />
+      <ellipse cx="66" cy="60" rx="7" ry="4.5" fill="#FFB7C5" opacity="0.6" />
       {/* 鼻 */}
-      <ellipse cx="50" cy="62" rx="2.5" ry="1.8" fill="#BDBDE8" />
+      <circle cx="50" cy="60" r="2" fill="#B0A8D8" />
       {/* 口 */}
-      <path d="M44 66 Q50 70 56 66" stroke="#C06080" strokeWidth="1.8" fill="none" strokeLinecap="round" />
+      {renderMouth()}
     </svg>
   );
 }
@@ -371,22 +578,22 @@ export default function AiBuddy({
         style={{ position: 'relative', width: '100%', height: '100%' }}
       >
         {/* ── うさぎ ── */}
-        {character === 'bunny' && <BunnySvg isBlinking={isBlinking} />}
+        {character === 'bunny' && <BunnySvg isBlinking={isBlinking} mood={mood} />}
 
         {/* ── ゴリラ ── */}
-        {character === 'gorilla' && <GorillaSvg isBlinking={isBlinking} />}
+        {character === 'gorilla' && <GorillaSvg isBlinking={isBlinking} mood={mood} />}
 
         {/* ── 猫 ── */}
-        {character === 'cat' && <CatSvg isBlinking={isBlinking} />}
+        {character === 'cat' && <CatSvg isBlinking={isBlinking} mood={mood} />}
 
         {/* ── 犬 ── */}
-        {character === 'dog' && <DogSvg isBlinking={isBlinking} />}
+        {character === 'dog' && <DogSvg isBlinking={isBlinking} mood={mood} />}
 
         {/* ── ナマケモノ ── */}
-        {character === 'sloth' && <SlothSvg isBlinking={isBlinking} />}
+        {character === 'sloth' && <SlothSvg isBlinking={isBlinking} mood={mood} />}
 
         {/* ── モモンガ ── */}
-        {character === 'momonga' && <MomongaSvg isBlinking={isBlinking} />}
+        {character === 'momonga' && <MomongaSvg isBlinking={isBlinking} mood={mood} />}
       </div>
     </div>
   );
