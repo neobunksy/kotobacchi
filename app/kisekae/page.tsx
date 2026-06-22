@@ -1,19 +1,19 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { loadUser, saveUser, type UserData, type EquippedItems } from '@/lib/store';
+import { loadUser, saveUser, type UserData, type EquippedItems, type AiBuddyCharacter, getSelectedCharacter, setSelectedCharacter } from '@/lib/store';
 import AiBuddy from '@/components/AiBuddy';
 import StarCounter from '@/components/StarCounter';
 import BackButton from '@/components/BackButton';
 
-type KisekaeCategory = 'hat' | 'outfit' | 'accessory' | 'background';
+type KisekaeCategory = 'character' | 'hat' | 'outfit' | 'accessory' | 'background';
 
 type ShopItem = {
   id: string;
   label: string;
   emoji: string;
   cost: number;
-  category: KisekaeCategory;
+  category: Exclude<KisekaeCategory, 'character'>;
   free?: boolean;
 };
 
@@ -38,11 +38,27 @@ const SHOP_ITEMS: ShopItem[] = [
 ];
 
 const CATEGORY_LABELS: Record<KisekaeCategory, string> = {
+  character: 'きゃら',
   hat: '帽子',
   outfit: '服',
   accessory: 'アクセ',
   background: 'はいけい',
 };
+
+type CharacterDef = {
+  id: AiBuddyCharacter;
+  label: string;
+  emoji: string;
+};
+
+const CHARACTER_LIST: CharacterDef[] = [
+  { id: 'bunny',   label: 'うさぎ',     emoji: '🐰' },
+  { id: 'gorilla', label: 'ゴリラ',     emoji: '🦍' },
+  { id: 'cat',     label: 'ねこ',       emoji: '🐱' },
+  { id: 'dog',     label: 'いぬ',       emoji: '🐶' },
+  { id: 'sloth',   label: 'ナマケモノ', emoji: '🦥' },
+  { id: 'momonga', label: 'モモンガ',   emoji: '🐿' },
+];
 
 const BACKGROUND_STYLES: Record<string, string> = {
   bg_sky: 'linear-gradient(180deg, #87CEEB 0%, #B8E6F8 100%)',
@@ -52,13 +68,15 @@ const BACKGROUND_STYLES: Record<string, string> = {
 
 export default function KisekiaPage() {
   const [user, setUser] = useState<UserData | null>(null);
-  const [category, setCategory] = useState<KisekaeCategory>('hat');
+  const [category, setCategory] = useState<KisekaeCategory>('character');
   const [confirmItem, setConfirmItem] = useState<ShopItem | null>(null);
   const [flashMsg, setFlashMsg] = useState('');
+  const [selectedChar, setSelectedChar] = useState<AiBuddyCharacter | null>(null);
 
   useEffect(() => {
     const u = loadUser();
     setUser(u);
+    setSelectedChar(getSelectedCharacter());
   }, []);
 
   if (!user) {
@@ -113,7 +131,21 @@ export default function KisekiaPage() {
     setTimeout(() => setFlashMsg(''), 2000);
   };
 
-  const categoryItems = SHOP_ITEMS.filter(i => i.category === category);
+  const handleSelectChar = (char: AiBuddyCharacter | null) => {
+    setSelectedChar(char);
+    setSelectedCharacter(char);
+    if (char === null) {
+      setFlashMsg('ランダムにもどったよ！');
+    } else {
+      const def = CHARACTER_LIST.find(c => c.id === char);
+      setFlashMsg(`${def?.label ?? char}にしたよ！`);
+    }
+    setTimeout(() => setFlashMsg(''), 1500);
+  };
+
+  const categoryItems = category !== 'character'
+    ? SHOP_ITEMS.filter(i => i.category === category)
+    : [];
 
   const equippedHat = user.equippedItems.hat;
   const equippedOutfit = user.equippedItems.outfit;
@@ -149,6 +181,7 @@ export default function KisekiaPage() {
         >
           <AiBuddy
             size={120}
+            character={selectedChar ?? undefined}
             hat={equippedHat}
             outfit={equippedOutfit}
             accessory={equippedAccessory}
@@ -177,53 +210,99 @@ export default function KisekiaPage() {
 
       {/* アイテムグリッド */}
       <div className="flex-1 overflow-y-auto px-4 pb-8 relative z-10">
-        <div className="grid grid-cols-2 gap-3 max-w-sm mx-auto">
-          {categoryItems.map(item => {
-            const isUnlocked = user.unlockedItems.includes(item.id);
-            const isEquipped =
-              item.category === 'hat' ? user.equippedItems.hat === item.id
-              : item.category === 'outfit' ? user.equippedItems.outfit === item.id
-              : item.category === 'accessory' ? user.equippedItems.accessory === item.id
-              : user.equippedItems.background === item.id;
-
-            return (
-              <button
-                key={item.id}
-                onClick={() => handleEquip(item)}
-                className="rounded-3xl p-4 flex flex-col items-center gap-2 shadow-md transition-all active:scale-95"
-                style={{
-                  backgroundColor: isEquipped
-                    ? '#FFE66D'
-                    : isUnlocked
-                    ? 'rgba(255,255,255,0.92)'
-                    : 'rgba(200,200,200,0.7)',
-                  border: isEquipped
-                    ? '3px solid #FFD700'
-                    : isUnlocked
-                    ? '2px solid rgba(255,255,255,0.8)'
-                    : '2px dashed rgba(180,180,180,0.8)',
-                  minHeight: '110px',
-                  opacity: !isUnlocked && user.stars < item.cost ? 0.75 : 1,
-                }}
-              >
-                <span className="text-4xl">{item.emoji}</span>
-                <span className="text-sm font-bold text-center" style={{ color: '#4A4A4A' }}>
-                  {item.label}
+        {category === 'character' ? (
+          <div className="flex flex-col gap-3 max-w-sm mx-auto">
+            {/* ランダムボタン */}
+            <button
+              onClick={() => handleSelectChar(null)}
+              className="w-full rounded-3xl p-4 flex items-center justify-center gap-2 shadow-md transition-all active:scale-95"
+              style={{
+                backgroundColor: selectedChar === null ? '#FFE66D' : 'rgba(255,255,255,0.92)',
+                border: selectedChar === null ? '3px solid #FFD700' : '2px solid rgba(255,255,255,0.8)',
+                minHeight: '60px',
+              }}
+            >
+              <span className="text-2xl">🎲</span>
+              <span className="text-base font-bold" style={{ color: '#4A4A4A' }}>ランダム</span>
+              {selectedChar === null && (
+                <span className="text-xs font-bold rounded-full px-2 py-0.5 ml-2" style={{ backgroundColor: '#FFD700', color: '#4A4A4A' }}>
+                  えらんでる！
                 </span>
-                {isEquipped && (
-                  <span className="text-xs font-bold rounded-full px-2 py-0.5" style={{ backgroundColor: '#FFD700', color: '#4A4A4A' }}>
-                    そうちゃく中
+              )}
+            </button>
+            {/* キャラ選択グリッド */}
+            <div className="grid grid-cols-2 gap-3">
+              {CHARACTER_LIST.map(def => (
+                <button
+                  key={def.id}
+                  onClick={() => handleSelectChar(def.id)}
+                  className="rounded-3xl p-4 flex flex-col items-center gap-2 shadow-md transition-all active:scale-95"
+                  style={{
+                    backgroundColor: selectedChar === def.id ? '#FFE66D' : 'rgba(255,255,255,0.92)',
+                    border: selectedChar === def.id ? '3px solid #FFD700' : '2px solid rgba(255,255,255,0.8)',
+                    minHeight: '110px',
+                  }}
+                >
+                  <span className="text-4xl">{def.emoji}</span>
+                  <span className="text-sm font-bold" style={{ color: '#4A4A4A' }}>{def.label}</span>
+                  {selectedChar === def.id && (
+                    <span className="text-xs font-bold rounded-full px-2 py-0.5" style={{ backgroundColor: '#FFE66D', color: '#4A4A4A', border: '1px solid #FFD700' }}>
+                      えらんでる！
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-3 max-w-sm mx-auto">
+            {categoryItems.map(item => {
+              const isUnlocked = user.unlockedItems.includes(item.id);
+              const isEquipped =
+                item.category === 'hat' ? user.equippedItems.hat === item.id
+                : item.category === 'outfit' ? user.equippedItems.outfit === item.id
+                : item.category === 'accessory' ? user.equippedItems.accessory === item.id
+                : user.equippedItems.background === item.id;
+
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => handleEquip(item)}
+                  className="rounded-3xl p-4 flex flex-col items-center gap-2 shadow-md transition-all active:scale-95"
+                  style={{
+                    backgroundColor: isEquipped
+                      ? '#FFE66D'
+                      : isUnlocked
+                      ? 'rgba(255,255,255,0.92)'
+                      : 'rgba(200,200,200,0.7)',
+                    border: isEquipped
+                      ? '3px solid #FFD700'
+                      : isUnlocked
+                      ? '2px solid rgba(255,255,255,0.8)'
+                      : '2px dashed rgba(180,180,180,0.8)',
+                    minHeight: '110px',
+                    opacity: !isUnlocked && user.stars < item.cost ? 0.75 : 1,
+                  }}
+                >
+                  <span className="text-4xl">{item.emoji}</span>
+                  <span className="text-sm font-bold text-center" style={{ color: '#4A4A4A' }}>
+                    {item.label}
                   </span>
-                )}
-                {!isUnlocked && (
-                  <span className="text-xs font-bold rounded-full px-2 py-0.5" style={{ backgroundColor: '#FFB7C5', color: '#4A4A4A' }}>
-                    ⭐ {item.cost}で かいほう！
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
+                  {isEquipped && (
+                    <span className="text-xs font-bold rounded-full px-2 py-0.5" style={{ backgroundColor: '#FFD700', color: '#4A4A4A' }}>
+                      そうちゃく中
+                    </span>
+                  )}
+                  {!isUnlocked && (
+                    <span className="text-xs font-bold rounded-full px-2 py-0.5" style={{ backgroundColor: '#FFB7C5', color: '#4A4A4A' }}>
+                      ⭐ {item.cost}で かいほう！
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* 購入確認モーダル */}

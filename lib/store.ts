@@ -28,6 +28,7 @@ export type UserData = {
 
 const STORAGE_KEY = 'kotobacchi_user';
 const CHAR_STORAGE_KEY = 'kotobacchi_today_char';
+const SELECTED_CHAR_KEY = 'kotobacchi_selected_char';
 
 const defaultEquippedItems: EquippedItems = {
   hat: null,
@@ -172,8 +173,28 @@ function getTimePeriod(): string {
   return 'latenight';
 }
 
+export function setSelectedCharacter(char: AiBuddyCharacter | null): void {
+  if (typeof window === 'undefined') return;
+  if (char === null) {
+    localStorage.removeItem(SELECTED_CHAR_KEY);
+  } else {
+    localStorage.setItem(SELECTED_CHAR_KEY, char);
+  }
+}
+
+export function getSelectedCharacter(): AiBuddyCharacter | null {
+  if (typeof window === 'undefined') return null;
+  const raw = localStorage.getItem(SELECTED_CHAR_KEY);
+  if (!raw) return null;
+  return raw as AiBuddyCharacter;
+}
+
 export function getTodayCharacter(): AiBuddyCharacter {
   if (typeof window === 'undefined') return 'bunny';
+
+  // ユーザーが手動選択したキャラを優先
+  const selected = getSelectedCharacter();
+  if (selected) return selected;
 
   const today = new Date().toISOString().split('T')[0];
 
