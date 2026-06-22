@@ -116,7 +116,7 @@ function NeedsMeter({
       <span className="text-xs font-bold w-10 shrink-0" style={{ color: '#4A4A4A' }}>{label}</span>
       <div
         className="flex-1 rounded-full overflow-hidden"
-        style={{ height: 12, backgroundColor: 'rgba(255,255,255,0.5)' }}
+        style={{ height: 10, backgroundColor: 'rgba(255,255,255,0.5)' }}
       >
         <div
           className={isLow ? 'animate-pulse' : ''}
@@ -228,7 +228,7 @@ export default function HomePage() {
   const needs = user.needs;
 
   return (
-    <div className="flex flex-col min-h-screen relative overflow-hidden" style={{ background: bg }}>
+    <div className="flex flex-col h-screen overflow-hidden relative" style={{ background: bg }}>
       {timeOfDay === 'night' && <NightStars />}
 
       {timeOfDay !== 'night' && (
@@ -250,20 +250,20 @@ export default function HomePage() {
       )}
 
       {/* ヘッダー：ほし数 */}
-      <div className="flex justify-end items-center px-4 pt-6 pb-2 relative z-10">
+      <div className="flex justify-end items-center px-4 pt-3 pb-1 relative z-10">
         <StarCounter stars={user.stars} />
       </div>
 
       {/* メインエリア */}
-      <div className="flex flex-col items-center flex-1 px-4 pb-24 relative z-10">
+      <div className="flex flex-col items-center flex-1 px-4 pb-2 relative z-10 overflow-hidden">
         {/* キャラクター + 吹き出し */}
-        <div className="flex flex-col items-center mt-2 mb-2">
+        <div className="flex flex-col items-center mt-1 mb-1">
           <div
-            className="relative rounded-3xl px-5 py-3 mb-3 text-center transition-opacity duration-300"
+            className="relative rounded-3xl px-5 py-2 mb-1 text-center transition-opacity duration-300"
             style={{
               backgroundColor: 'rgba(255,255,255,0.9)',
               opacity: showSpeechBubble ? 1 : 0,
-              maxWidth: '200px',
+              maxWidth: '180px',
               boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
             }}
           >
@@ -279,7 +279,7 @@ export default function HomePage() {
           </div>
 
           <AiBuddy
-            size={140}
+            size={110}
             character={todayCharacter}
             mood={buddyMood}
             hat={user.equippedItems.hat}
@@ -291,10 +291,10 @@ export default function HomePage() {
 
         {/* ニーズメーター */}
         <div
-          className="w-full max-w-xs rounded-2xl px-4 py-3 mb-3"
+          className="w-full max-w-xs rounded-2xl px-4 py-2 mb-1"
           style={{ backgroundColor: 'rgba(255,255,255,0.55)', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
         >
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-1.5">
             <NeedsMeter emoji="🍙" label="おなか" value={needs.hunger} color="#FF9D5C" />
             <NeedsMeter emoji="😴" label="ねむい" value={needs.sleepy} color="#9B8ECF" />
             <NeedsMeter emoji="💕" label="きもち" value={needs.mood}   color="#FF8FAB" />
@@ -302,58 +302,57 @@ export default function HomePage() {
         </div>
 
         {/* アクションボタン */}
-        <div className="flex gap-3 mb-4 w-full max-w-xs justify-center">
+        <div className="flex gap-3 mb-1 w-full max-w-xs justify-center">
           <button
             onClick={() => handleAction(feedCharacter)}
-            className="flex-1 flex flex-col items-center gap-1 rounded-2xl py-3 active:scale-95 transition-transform"
+            className="flex-1 flex flex-col items-center gap-1 rounded-2xl py-2 active:scale-95 transition-transform"
             style={{ backgroundColor: 'rgba(255,157,92,0.85)', boxShadow: '0 3px 10px rgba(255,157,92,0.4)' }}
           >
-            <span className="text-2xl">🍙</span>
+            <span className="text-xl">🍙</span>
             <span className="text-xs font-bold" style={{ color: '#4A2A00' }}>ごはん</span>
           </button>
           <button
             onClick={() => handleAction(restCharacter)}
-            className="flex-1 flex flex-col items-center gap-1 rounded-2xl py-3 active:scale-95 transition-transform"
+            className="flex-1 flex flex-col items-center gap-1 rounded-2xl py-2 active:scale-95 transition-transform"
             style={{ backgroundColor: 'rgba(155,142,207,0.85)', boxShadow: '0 3px 10px rgba(155,142,207,0.4)' }}
           >
-            <span className="text-2xl">😴</span>
+            <span className="text-xl">😴</span>
             <span className="text-xs font-bold" style={{ color: '#2A1A4A' }}>ねんね</span>
           </button>
           <button
             onClick={() => handleAction(playWithCharacter)}
-            className="flex-1 flex flex-col items-center gap-1 rounded-2xl py-3 active:scale-95 transition-transform"
+            className="flex-1 flex flex-col items-center gap-1 rounded-2xl py-2 active:scale-95 transition-transform"
             style={{ backgroundColor: 'rgba(255,143,171,0.85)', boxShadow: '0 3px 10px rgba(255,143,171,0.4)' }}
           >
-            <span className="text-2xl">🎮</span>
+            <span className="text-xl">🎮</span>
             <span className="text-xs font-bold" style={{ color: '#4A0A1A' }}>あそぶ</span>
           </button>
         </div>
 
         {/* あいさつ */}
         <p
-          className="text-xl font-bold text-center mb-6"
+          className="text-base font-bold text-center mb-2"
           style={{ color: textColor, textShadow }}
         >
           {greeting}
         </p>
 
-        {/* メニューカード */}
-        <div className="flex flex-col gap-3 w-4/5 max-w-xs">
+        {/* メニューカード（2×2グリッド） */}
+        <div className="grid grid-cols-2 gap-2 w-full max-w-xs">
           {MENU_ITEMS.map(item => (
             <button
               key={item.href}
               onClick={() => router.push(item.href)}
-              className="flex items-center gap-4 rounded-3xl px-6 transition-all active:scale-95"
+              className="flex flex-col items-center justify-center gap-1 rounded-3xl py-3 px-2 transition-all active:scale-95"
               style={{
                 backgroundColor: item.bg,
-                minHeight: '90px',
-                boxShadow: `0 6px 20px ${item.shadow}`,
+                minHeight: '72px',
+                boxShadow: `0 4px 12px ${item.shadow}`,
                 border: '2px solid rgba(255,255,255,0.6)',
               }}
             >
-              <span className="text-4xl">{item.emoji}</span>
-              <span className="text-xl font-bold" style={{ color: '#4A4A4A' }}>{item.label}</span>
-              <span className="ml-auto text-2xl" style={{ color: 'rgba(74,74,74,0.4)' }}>›</span>
+              <span className="text-3xl">{item.emoji}</span>
+              <span className="text-sm font-bold" style={{ color: '#4A4A4A' }}>{item.label}</span>
             </button>
           ))}
         </div>
@@ -370,7 +369,7 @@ export default function HomePage() {
           className="rounded-full p-1 shadow-lg animate-gentlePulse"
           style={{ backgroundColor: 'rgba(255,255,255,0.9)', border: '3px solid #FFB7C5' }}
         >
-          <AiBuddy size={56} mood="idle" character={todayCharacter} />
+          <AiBuddy size={48} mood="idle" character={todayCharacter} />
         </div>
       </div>
     </div>
